@@ -4,7 +4,7 @@ This folder contains the Arduino Mega programs used for gas sensing data acquisi
 
 ## Overview
 
-The purpose of these Arduino sketches is to collect raw gas sensor data and environmental data for pineapple ripeness analysis. The system uses multiple gas sensors together with a BME280 environmental sensor and sends the measurements through serial output for later preprocessing, feature extraction, and machine learning model training.
+The purpose of these Arduino sketches is to collect raw gas sensor data and environmental data for pineapple ripeness analysis. These two programs are specifically designed for **data collection for model training**, not for final deployment or real-time prediction. The system uses multiple gas sensors together with a BME280 environmental sensor and sends the measurements through serial output for later preprocessing, feature extraction, and machine learning model training.
 
 ## Hardware
 
@@ -46,7 +46,7 @@ Main functions:
 - records temperature, humidity, and pressure
 - sends the results through serial output
 
-This file is mainly used to establish the baseline condition of the sensing environment.
+This file is mainly used to establish the baseline condition of the sensing environment and generate reference data for later model training.
 
 ### `pineapple_sample_collection.ino`
 
@@ -61,7 +61,21 @@ Main functions:
 - computes baseline values from early valid samples
 - sends time-series sensor data through serial output
 
-This file is mainly used to capture volatile gas patterns released by pineapple samples for later ripeness analysis.
+This file is mainly used to capture volatile gas patterns released by pineapple samples and generate sample data for later model training.
+
+## Training Purpose
+
+These two Arduino programs are **dedicated data collection codes for model training**.
+
+They are used to:
+
+- collect air baseline data
+- collect pineapple sample gas data
+- build the raw dataset for preprocessing
+- support feature engineering and baseline correction
+- provide input data for machine learning model training and evaluation
+
+In other words, these sketches are part of the **training data acquisition stage** of the project, rather than the final prediction stage.
 
 ## Data Output
 
@@ -93,6 +107,8 @@ The general workflow is:
 
 - `air_baseline_collection.ino` is used for air/background measurement.
 - `pineapple_sample_collection.ino` is used for pineapple sample measurement.
+- Both files are specifically written for collecting training data.
+- They are not the deployment scripts for Raspberry Pi inference.
 - The collected data is later used for preprocessing, feature engineering, model training, and deployment.
 - These Arduino programs are one part of the complete pineapple ripeness detection pipeline.
 
