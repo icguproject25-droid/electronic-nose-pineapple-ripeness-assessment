@@ -42,23 +42,25 @@
 ---
 
 ## 🏗️ 系統架構
-┌─────────────────────────────────────────────────────────────┐
-│ 👤 使用者端 User Interface Layer │
-│ 消費端 App (React Native) │ 農民端 App │ Flask 模擬介面 │
-├─────────────────────────────────────────────────────────────┤
-│ 🌐 應用服務層 Application Service Layer │
-│ SSH 遠端控制 │ API 服務 │ 結果紀錄 / 報表 │
-├─────────────────────────────────────────────────────────────┤
-│ 🖥️ 運算處理層 Processing Layer │
-│ Raspberry Pi 3 │ 特徵工程 │ ExtraTrees 推論 │ 後處理邏輯 │
-├─────────────────────────────────────────────────────────────┤
-│ 🔌 資料傳輸層 Data Transfer Layer │
-│ USB Serial (115200 baud) │ I²C (BME280) │
-├─────────────────────────────────────────────────────────────┤
-│ 🔬 感測層 Sensing Layer │
-│ Arduino Mega 2560 │ MQ 系列感測器 │ TGS 系列 │ BME280 │
-└─────────────────────────────────────────────────────────────┘
 
+```
+┌─────────────────────────────────────────────────────────────┐
+│            👤 使用者端  User Interface Layer                 │
+│  消費端 App (React Native) │ 農民端 App │ Flask 模擬介面      │
+├─────────────────────────────────────────────────────────────┤
+│            🌐 應用服務層  Application Service Layer          │
+│          SSH 遠端控制 │ API 服務 │ 結果紀錄 / 報表            │
+├─────────────────────────────────────────────────────────────┤
+│            🖥️  運算處理層  Processing Layer                  │
+│   Raspberry Pi 3 │ 特徵工程 │ ExtraTrees 推論 │ 後處理邏輯   │
+├─────────────────────────────────────────────────────────────┤
+│            🔌 資料傳輸層  Data Transfer Layer                │
+│          USB Serial (115200 baud) │ I²C (BME280)             │
+├─────────────────────────────────────────────────────────────┤
+│            🔬 感測層  Sensing Layer                          │
+│   Arduino Mega 2560 │ MQ 系列感測器 │ TGS 系列 │ BME280      │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -113,27 +115,50 @@ pip install -r requirements.txt
 ```
 
 ### 專案檔案結構
-📦 pineapple-ripeness-detection
-├── 📄 deploystudent.pkl # ExtraTrees 部署模型 (6.2 MB)
-├── 📄 featurecolumns.json # 11 項部署特徵名稱清單
-├── 📄 deploymeta.json # 模型元資料 (Stage 映射)
-├── 📄 airbase.json # 空氣基準線參數（校正後產生）
-├── 📄 requirements.txt # Python 相依套件清單
-├── 🐍 calibrate_air_30s.py # 空氣基線校正主程式
-├── 🐍 inference_30s.py # 30 秒窗口推論主程式
-├── 🐍 applocal.py # Flask 模擬測試介面
-└── 📁 app/
-├── 📁 consumer/ # 消費端 React Native App
-│ ├── Home.tsx
-│ ├── ScanProcess.tsx
-│ ├── Result.tsx
-│ └── History.tsx
-└── 📁 farmer/ # 農民端 React Native App
-├── FarmerHome.tsx
-├── BatchCreate.tsx
-├── BatchScan.tsx
-├── BatchResult.tsx
-└── ReportAnalysis.tsx
+
+```
+📦 AN-ELECTRONIC-NOSE-BASED-NO...
+│
+├── 📁 arduino_mega_data_collection/          # Arduino 資料擷取韌體
+│   ├── 🔌 air_baseline_collection.ino        # 空氣基線蒐集程式
+│   ├── 🔌 pineapple_sample_collection.ino    # 鳳梨樣本蒐集程式
+│   └── 📄 README.md
+│
+├── 📁 enose_model_training/                  # 模型訓練工作區
+│   └── 📁 orkspace/
+│       ├── 📁 catboost_info/                 # CatBoost 訓練紀錄
+│       ├── 📁 data/                          # 原始量測資料
+│       ├── 📁 deploy_rpi_catboost/           # CatBoost 部署版本
+│       ├── 📁 deploy_rpi_et_10s/             # ExtraTrees 10s 版本
+│       ├── 📁 deploy_rpi_et_10s_nodeay/
+│       ├── 📁 deploy_rpi_et_30s_noday/
+│       ├── 📁 deploy_rpi_et_30s_noday_s3_sensitive/
+│       ├── 📁 deploy_rpi_et_30s_nodeay/
+│       ├── 📁 deploy_rpi_student/            # Student 模型部署版本
+│       ├── 📁 deploy_rpi_student_short/
+│       ├── 📁 models/                        # 儲存的模型檔案
+│       ├── 📁 reports/                       # 訓練報表與評估結果
+│       ├── {} cutpoints.json                 # 閾值設定
+│       ├── 📊 data_label_audit_report.xlsx   # 資料標注稽核報表
+│       ├── {} feature_columns.json           # 特徵欄位定義
+│       ├── 📓 labeling_perfect_final.ipynb   # 標注最終版 Notebook
+│       ├── 📊 labeling.xlsx                  # 標注資料表
+│       ├── 📄 model_final.pkl                # 最終訓練模型
+│       ├── 🖼️ stage_timeline.png             # 成熟度時間軸圖
+│       └── 📄 README.md
+│
+├── 📁 files(設計文件&簡報)/                  # 設計規格書與簡報
+│
+├── 📁 pineapple_deployment_system/           # Raspberry Pi 部署系統
+│   ├── 🐍 app_local.py                       # Flask 模擬測試介面
+│   ├── 🐍 calibrate_air_30s.py              # 空氣基線校正主程式
+│   ├── 🐍 inference_30s.py                  # 30 秒窗口推論主程式
+│   ├── 🔌 use_this.ino                       # Arduino 搭配推論用韌體
+│   └── 📄 README.md
+│
+├── 🎬 114_2_midterm_demo_video.mov           # 期中成果展示影片
+└── 📄 README.md
+```
 
 ---
 
@@ -193,10 +218,176 @@ python3 inference_30s.py
 ```
 
 系統累積 30 秒感測窗口後輸出：
+
+```
 [推論結果]
 Stage 0 機率: 0.03
 Stage 1 機率: 0.12
-Stage 2 機率: 0.79 ← argmax
+Stage 2 機率: 0.79   ← argmax
 Stage 3 機率: 0.06
 
 ✅ 最終判定：Stage 2（完熟）— 建議立即食用
+```
+
+### Step 5｜Flask 模擬介面（開發 / 測試用）
+
+```bash
+python3 applocal.py
+# 開啟瀏覽器前往 http://localhost:5000
+```
+
+介面功能：
+- **Air Baseline 校正**：透過 SSH 遠端觸發 Raspberry Pi 執行校正
+- **開始推論**：顯示四階段機率長條圖與最終預測結果
+- **狀態訊息列**：顯示目前作業狀態（待機 / 校正中 / 推論中 / 錯誤）
+
+---
+
+## 🤖 機器學習模型
+
+### 訓練流程
+
+```
+VOC 量測資料
+     │
+     ▼
+特徵工程（159 項 PID-specific + 7 項 shared-by-date）
+     │
+     ▼
+CatBoost  ──── Teacher Model ────▶  知識蒸餾
+                                        │
+                                        ▼
+                               ExtraTrees  ──── Student Model
+                                        │
+                                        ▼
+                          MI 篩選 11 項核心特徵 → 部署推論
+```
+
+### 訓練資料
+
+| 項目 | 數值 |
+|------|------|
+| 鳳梨數量 | 14 顆（金鑽鳳梨） |
+| 每日量測筆數 | 333 筆 per-day features |
+| Stage 0 | 32 筆 |
+| Stage 1 | 25 筆 |
+| Stage 2 | 29 筆 |
+| Stage 3 | 21 筆 → **69 筆**（Pseudo Labeling 補強） |
+
+### 11 項部署特徵
+
+| # | 特徵名稱 | 計算方式 |
+|---|----------|----------|
+| 1 | `MQ3stdnorm` | MQ3 標準差歸一化 |
+| 2 | `MQ3rangenorm` | MQ3 範圍歸一化 |
+| 3 | `MQ2MQ3ratio` | MQ2 / MQ3 濃度比值 |
+| 4 | `MQ3MQ135ratio` | MQ3 / MQ135 濃度比值 |
+| 5 | `MQ9slope` | MQ9 濃度變化斜率 |
+| 6 | `TGS2602minnorm` | TGS2602 最小值歸一化 ⭐ |
+| 7 | `MQ2aucnorm` | MQ2 曲線下面積歸一化 |
+| 8 | `MQ2meannorm` | MQ2 均值歸一化 |
+| 9 | `MQ9minnorm` | MQ9 最小值歸一化 |
+| 10 | `TGS2602stdnorm` | TGS2602 標準差歸一化 ⭐ |
+| 11 | `MQ9deltamean` | MQ9 均值變化量 |
+
+### 模型效能指標
+
+| 指標 | 數值 |
+|------|------|
+| LOGO 交叉驗證平均準確率 | **86.15%** |
+| Macro F1 Score | **83.09%** |
+| 部署前樣本準確率 | 79.27% |
+| 含後處理樣本準確率 | **80.49%** |
+| 部署模型大小 | **6.2 MB** |
+
+### 後處理邏輯
+
+```
+Guard Baseline
+  └─ 若所有感測值接近 airbase.json 基準線（誤差範圍內）
+     → 強制輸出 Stage 0（避免空氣被誤判為成熟）
+
+Override 邏輯
+  └─ 若模型預測為 Stage 2
+     且 TGS2602 / MQ3 特徵超過閾值
+     → Override 為 Stage 3（過熟）
+```
+
+---
+
+## 📱 App 介面
+
+### 消費端 App
+
+| 頁面 | 檔案 | 功能 |
+|------|------|------|
+| 首頁 | `Home.tsx` | 開始掃描、中英語言切換 |
+| 掃描流程頁 | `ScanProcess.tsx` | 放入引導動畫、30 秒倒數進度條 |
+| 結果頁 | `Result.tsx` | 熟度標籤（🟢🟡🟠🔴）、信心值、食用建議 |
+| 歷史紀錄 | `History.tsx` | 過往掃描清單（日期 / 熟度 / 信心值） |
+
+### 農民端 App
+
+| 頁面 | 檔案 | 功能 |
+|------|------|------|
+| 農民首頁 | `FarmerHome.tsx` | 批次概況、統計摘要 |
+| 批次建立 | `BatchCreate.tsx` | 建立批次名稱 / 數量 / 日期 |
+| 批次掃描 | `BatchScan.tsx` | 連續多顆掃描、剩餘計數器 |
+| 批次結果 | `BatchResult.tsx` | 熟度分布餅圖、表格摘要 |
+| 報表分析 | `ReportAnalysis.tsx` | PDF / 圖表匯出 |
+
+> 🌐 **雙語支援**：消費端與農民端皆支援中英文即時切換，語系偏好儲存於裝置本地。
+
+---
+
+## ⚠️ 系統限制
+
+| 限制類別 | 說明 |
+|----------|------|
+| **硬體** | 感測器需暖機 60–180 秒；Raspberry Pi 3 記憶體 1GB，僅適合輕量模型 |
+| **演算法** | 部署端不含 `dayratio` 等日期相關特徵；Stage 3 仍受個體差異影響 |
+| **應用場景** | 目前僅支援金鑽鳳梨品種；每次單顆量測，不支援批次同時量測 |
+| **安全性** | Flask 介面僅限區域網路，尚未實作 HTTPS 與完整身分驗證 |
+| **操作環境** | 建議溫度 20–30°C，相對濕度 40–70% |
+
+---
+
+## 🗂️ 版本管理
+
+### 分支策略
+
+```
+main        ← 正式穩定版本（可展示 / 可交付）
+develop     ← 開發整合版本（功能整合測試）
+feature/*   ← 功能開發分支（各模組獨立開發）
+```
+
+### API 版本規劃
+
+| 版本 | 功能 |
+|------|------|
+| `v1` | 鳳梨成熟度四階段分類 |
+| `v2` | 預留：多水果支援、批次分析擴充 |
+
+---
+
+## 👥 開發團隊
+
+> 本專題由長庚大學(Chang Gung University)B1144143陳玟妤、B1229062林冠妤、B1229066陳怡禎、B1229068廖文歆共同開發
+
+| 部分 | 細節 |
+|------|----------|
+| 硬體工程 | 感測器電路設計、Arduino 韌體開發 |
+| 模型工程 | 特徵工程、Teacher-Student 模型訓練與部署 |
+| 後端工程 | Raspberry Pi 部署、Flask API、SSH 整合 |
+| 前端工程 | React Native App（消費端 / 農民端） |
+
+---
+
+## 📄 相關文件
+
+| 文件 | 說明 |
+|------|------|
+| `設計規格書 v1.0` | 系統完整設計規格，含架構圖、流程圖、介面設計 |
+| `featurecolumns.json` | 11 項部署特徵欄位定義 |
+| `deploymeta.json` | Stage 映射與模型元資料 |
