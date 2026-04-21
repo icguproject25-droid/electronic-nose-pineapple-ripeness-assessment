@@ -3,7 +3,7 @@
 # 🍍 鳳梨成熟度辨識系統
 ### Pineapple Ripeness Detection System
 
-[![Watch Demo Video](https://img.shields.io/badge/▶️-Watch%20Demo%20Video-orange?style=for-the-badge)](https://drive.google.com/file/d/1zQTGWSUGKHxx7ukhSpP41EWQJNEOJPet/view?usp=drivesdk)
+[![Watch Demo Video](https://img.shields.io/badge/Click%20to%20Watch-Demo%20Video-blue?style=for-the-badge)](https://drive.google.com/file/d/1zQTGWSUGKHxx7ukhSpP41EWQJNEOJPet/view?usp=drivesdk)
 
 
 [▶️ Demo Video](https://github.com/icguproject25-droid/electronic-nose-pineapple-ripeness-assessment/blob/main/3rd%20Grade%20-%20Semester%202(%E4%B8%89%E4%B8%8B-%E6%9C%9F%E4%B8%AD)/114_2_midterm_demo_video.mov)
