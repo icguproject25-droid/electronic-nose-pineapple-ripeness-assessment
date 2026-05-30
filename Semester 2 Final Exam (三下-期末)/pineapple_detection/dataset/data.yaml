@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 2
+names: ['------------------------------', 'Pineapple - v8 v1']
+
+roboflow:
+  workspace: pineapplevariety
+  project: pineapple_detect
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/pineapplevariety/pineapple_detect/dataset/1
