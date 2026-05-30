@@ -1,0 +1,3 @@
+用這一個資料夾內的server_variety.py，他有在辨識鳳梨品種上再加上一層辨識有無東西、是不是鳳梨，一樣要將此資料夾所有都下載下來，載在自己桌面，用vs code跑即可，樹梅派的檔案一樣維持pineapple_app_gateway這份資頰不用刪。
+使用網頁方面的話，樹梅派是一樣跑app_gateway.py、筆電的vs code是跑這個資料夾的server_veriety.py。
+剩下的資料夾資訊在README.md中
