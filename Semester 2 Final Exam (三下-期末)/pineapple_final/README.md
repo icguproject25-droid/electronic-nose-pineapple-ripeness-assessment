@@ -1,0 +1,2 @@
+pineapple資料夾整份換成這一份pineapple_final，直接整個資料夾全部東西scp上樹梅派即可，可以直接在樹梅派上執行python app_local.py，在電腦端開啟http://172.20.10.2:5000這一個網頁，直接往下滑用既有的excel可以先虛擬測試結果出來，網頁的上方就是實際測試實體鳳梨的操作介面，app的畫看要不要支持去跑csv資料，不要也可以。
+整個資料夾的其他使用放在READ_pineapple_final.md中，再參考使用。
