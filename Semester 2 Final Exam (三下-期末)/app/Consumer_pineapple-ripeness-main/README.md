@@ -10,6 +10,88 @@
 
 ---
 
+# 專案目錄結構
+
+```text
+expo/
+├── .expo/
+├── app/                           # 頁面路由與導向 (Expo Router)
+│   ├── _layout.tsx                # 全域版面配置
+│   ├── +native-intent.tsx         # 原生 Intent 處理
+│   ├── +not-found.tsx             # 404 找不到頁面
+│   ├── calculator.tsx             # 計算機頁面
+│   ├── history-detail.tsx         # 歷史紀錄詳情
+│   ├── history.tsx                # 歷史紀錄列表
+│   ├── index.tsx                  # 應用程式首頁入口
+│   ├── instruction.tsx            # 使用說明/教學頁面
+│   ├── knowledge-base.tsx         # 知識庫頁面
+│   ├── menu.tsx                   # 主選單頁面
+│   ├── pending-uploads.tsx        # 待上傳佇列頁面
+│   ├── processing.tsx             # 資料處理中畫面
+│   ├── result.tsx                 # 檢測結果頁面
+│   ├── seasonal-guide.tsx         # 當季指南/季節導覽
+│   ├── settings.tsx               # 設定頁面
+│   ├── trivia.tsx                 # 科普問答/小知識頁面
+│   ├── varieties.tsx              # 品種列表頁面
+│   ├── variety-detail.tsx         # 品種詳情頁面
+│   └── variety-recognition.tsx   # 品種識別頁面
+├── assets/                        # 靜態資源
+│   ├── images/                    # 圖片資源
+│   │   ├── adaptive-icon.png      # Android 自適應圖標
+│   │   ├── favicon.png            # 網頁圖標
+│   │   ├── icon.png               # 應用程式基本圖標
+│   │   └── splash-icon.png        # 啟動畫面圖標
+│   └── sounds/                    # 音效資源
+│       ├── beep_long.mp3
+│       └── beep.mp3
+├── components/                    # 共用 UI 元件
+│   ├── DetectionAnimation.tsx     # 檢測動畫元件
+│   ├── PineappleIcon.tsx          # 鳳梨圖標元件
+│   ├── PineapplePattern.tsx       # 鳳梨背景/圖樣元件
+│   ├── PineappleTrivia.tsx        # 鳳梨小知識元件
+│   └── PineappleTriviaCard.tsx    # 鳳梨小知識卡片元件
+├── constants/                     # 常數設定
+│   ├── colors.ts                  # 全域顏色主題 (Palettes)
+│   └── translations.ts            # 多國語系翻譯文字
+├── contexts/                      # React Context 狀態管理
+│   ├── CalibrationContext.tsx     # 校準數據狀態
+│   ├── HistoryContext.tsx         # 歷史紀錄狀態
+│   ├── LanguageContext.tsx        # 語系切換狀態
+│   ├── SensorContext.tsx          # 感測器數據狀態
+│   ├── TriviaContext.tsx          # 問答遊戲狀態
+│   └── UploadQueueContext.tsx     # 上傳佇列狀態
+├── mocks/                         # 測試或靜態模擬資料
+│   ├── calculatorData.ts
+│   ├── knowledgeBase.ts
+│   ├── seasonalGuide.ts
+│   ├── triviaQuestions.ts
+│   └── varieties.ts
+├── node_modules/                  # 專案依賴套件目錄
+├── services/                      # 外部服務與 API 對接
+│   ├── api.ts                     # 網路請求 (Axios/Fetch)
+│   └── storage.ts                 # 本地端儲存 (AsyncStorage/MMKV)
+├── types/                         # TypeScript 型別定義
+│   └── scanRecord.ts              # 掃描紀錄資料結構型別
+├── utils/                         # 工具函式 (商業邏輯計算)
+│   ├── qualityScore.ts            # 品質評分演算法
+│   └── ripeness.ts                # 成熟度計算邏輯
+├── .gitignore                     # Git 忽略檔案清單
+├── app.json                       # Expo 專案設定檔
+├── babel.config.js                # Babel 編譯設定
+├── bun.lock                       # Bun 套件管理鎖定檔
+├── eslint.config.js               # 代碼檢查設定
+├── expo-env.d.ts                  # Expo 型別宣告檔
+├── metro.config.js                # Metro 打包器設定
+├── package-lock.json              # npm 套件管理鎖定檔
+├── package.json                   # 專案資訊與套件依賴清單
+├── README.md                      # 專案說明文件
+├── tsconfig.json                  # TypeScript 設定檔
+└── rork.json                      # 專案相關自訂設定檔
+
+```
+
+---
+
 # 專案特色
 
 ## 🍍 氣味成熟度辨識
@@ -251,28 +333,6 @@ EfficientNet-B0
 * 土鳳梨
 * 牛奶鳳梨
 * 西瓜鳳梨
-
----
-
-# 專案目錄結構
-
-```text
-expo/
-├── app/
-├── assets/
-├── components/
-├── constants/
-├── contexts/
-├── mocks/
-├── services/
-├── types/
-├── utils/
-│
-├── app.json
-├── package.json
-├── tsconfig.json
-└── README.md
-```
 
 ---
 
