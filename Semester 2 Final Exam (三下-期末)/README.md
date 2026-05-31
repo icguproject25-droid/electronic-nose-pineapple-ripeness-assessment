@@ -406,9 +406,140 @@ http://<RPi-IP>:8000   ← 整合入口網站
 
 ---
 
-## 8. 輸入 / 輸出格式 Input / Output Format
+## 8. 行動 App Mobile Apps
 
-### 8.1 電子鼻推論
+系統整合兩個 Expo / React Native App，分別供農民與消費者使用。兩者皆透過 Wi-Fi 與 Raspberry Pi（或 App Gateway）通訊。
+
+---
+
+### 8.1 農民端 App（Farmer App）
+
+**程式碼路徑：** `../3rd Grade - Semester 2 (三下-期中)/App/Farmer_pineapple-main/expo/`
+
+**定位：** 供農民在田間或倉庫操作，管理採收批次、逐批掃描鳳梨、追蹤今日異常數，並匯出報告。
+
+#### 畫面與功能
+
+| 頁面 | 功能說明 |
+|------|----------|
+| **首頁 Home** | 今日掃描總數、今日異常數、進行中批次數；「開始掃描」／「新建批次」快速按鈕；最近 4 筆批次列表 |
+| **批次管理 Batches** | 列出所有批次，狀態分草稿（draft）/ 進行中（testing）/ 完成（done） |
+| **建立批次** | 填寫批次名稱、田區、品種、採收量、用途（外銷 / 內銷 / 加工）、採樣目標數 |
+| **批次掃描 Scan** | 呼叫 RPi API，取得每顆成熟度、糖度 TSS Brix、黑心病風險、異常旗標；逐筆加入批次 |
+| **批次摘要 Summary** | 成熟度分佈圓餅圖（RipenessPieChart）、批次統計；匯出報告 |
+| **報告 Reports** | 所有歷史批次報告列表 |
+| **設定 Settings** | RPi 後端 URL、語言（zh / en）、糖度閾值（外銷 Brix、內銷 Brix）、採樣比例 |
+
+#### API 串接（呼叫 RPi Port 5000）
+
+```
+GET  /ping        → 確認後端是否上線
+POST /scan/start  → 觸發 30 秒掃描，回傳推論結果
+```
+
+**`/scan/start` 回傳格式：**
+
+```json
+{
+  "ripeness": "ripe",
+  "tss_brix": 14.5,
+  "blackheart_risk": "low",
+  "anomaly_flag": "normal"
+}
+```
+
+| 欄位 | 可能值 | 說明 |
+|------|--------|------|
+| `ripeness` | `unripe` / `ripe` / `overripe` | 成熟度 |
+| `tss_brix` | 10.0 – 18.0 | 糖度（Brix） |
+| `blackheart_risk` | `low` / `med` / `high` | 黑心病風險 |
+| `anomaly_flag` | `normal` / `isolate` | 是否需隔離 |
+
+> 後端離線時，App 自動 fallback 至本機亂數模擬值，方便無 RPi 時展示流程。
+
+#### 安裝與啟動
+
+```bash
+cd "../3rd Grade - Semester 2 (三下-期中)/App/Farmer_pineapple-main/expo"
+bun install            # 或 npm install
+bunx expo start        # 掃 QR code 以 Expo Go 開啟
+```
+
+首次使用請至「設定」頁面填入 Raspberry Pi IP：
+
+```
+http://172.20.10.2:5000    # 手機熱點環境（RPi 連手機熱點）
+http://192.168.0.152:5000  # 一般 Wi-Fi 環境
+```
+
+**技術棧：** Expo Router（檔案路由）、TypeScript、Zustand（狀態管理）、React Query、react-native-svg（圓餅圖）
+
+---
+
+### 8.2 消費端 App（Consumer App）
+
+**程式碼路徑：** `app/Consumer_pineapple-ripeness-main/expo/`
+
+**定位：** 供消費者使用，查詢鳳梨品種、提交掃描紀錄並瀏覽歷史記錄。
+
+#### 畫面與功能
+
+| 頁面 | 功能說明 |
+|------|----------|
+| **首頁 index** | App 入口，進入各主要功能 |
+| **掃描流程 processing → result** | 偵測動畫（含音效 beep.mp3）；掃描完成後顯示成熟度結果；可提交人工回饋 |
+| **品種介紹 varieties** | 四種鳳梨品種（金鑽／本土／牛奶／西瓜）列表；點入 variety-detail 查詳情 |
+| **知識庫 knowledge-base** | 鳳梨農業知識文章 |
+| **季節指南 seasonal-guide** | 各品種產季與採購建議 |
+| **趣味問答 trivia** | 鳳梨趣味小知識卡片 |
+| **糖度計算 calculator** | 甜度換算工具 |
+| **歷史記錄 history / history-detail** | 過去掃描紀錄列表；單筆詳情頁可補提交人工回饋 |
+| **待上傳 pending-uploads** | 離線時暫存的掃描紀錄，連線後批次同步 |
+| **操作說明 instruction** | App 使用教學 |
+
+#### API 串接
+
+```
+POST /scan_records               → 上傳掃描紀錄（含感測器原始數值）
+POST /scan_records/{id}/feedback → 提交人工回饋（correct_label）
+GET  /scan_records/export.xlsx   → 匯出歷史紀錄 Excel
+```
+
+**上傳 payload 包含感測器原始值：**
+
+```json
+{
+  "timestamp_iso": "2026-05-31T10:00:00.000Z",
+  "fruit_id": "PA-001",
+  "MQ2_raw": 312, "MQ3_raw": 189, "MQ9_raw": 254,
+  "MQ135_raw": 401, "TGS2602_raw": 178,
+  "Temp_C": 26.3, "Humidity_pct": 68.1, "Pressure_hPa": 1013.2,
+  "ripeness_pred": "ripe",
+  "confidence": 0.82,
+  "anomaly_flag": "none",
+  "locale": "zh-TW",
+  "device_id": "xxxx-xxxx",
+  "app_version": "1.0.0"
+}
+```
+
+#### 安裝與啟動
+
+```bash
+cd app/Consumer_pineapple-ripeness-main/expo
+bun install
+bunx expo start
+```
+
+在 App 設定頁填入後端 API base URL（Gateway Port 5002 或 RPi 直接 Port 5000）。
+
+**技術棧：** Expo Router、TypeScript、Zustand、多語言 Context（zh / en）、expo-av（音效）、expo-file-system、expo-sharing（匯出）
+
+---
+
+## 9. 輸入 / 輸出格式 Input / Output Format
+
+### 9.1 電子鼻推論
 
 **Arduino Serial 輸出格式（115200 baud）：**
 
@@ -496,7 +627,7 @@ EfficientNet-B0 + TTA × 5
 
 ---
 
-## 9. 模型資訊 Model Information
+## 10. 模型資訊 Model Information
 
 ### 9.1 電子鼻成熟度模型
 
@@ -520,7 +651,7 @@ EfficientNet-B0 + TTA × 5
 
 ---
 
-## 10. 專案結構 Project Structure
+## 11. 專案結構 Project Structure
 
 ```
 Semester 2 Final Exam (三下-期末)/
@@ -588,7 +719,7 @@ Semester 2 Final Exam (三下-期末)/
 
 ---
 
-## 11. 正式展示流程 Demo Presentation Flow
+## 12. 正式展示流程 Demo Presentation Flow
 
 ```
 展示前準備
@@ -629,7 +760,7 @@ Raspberry Pi（接著啟動）
 
 ---
 
-## 12. 常見問題 Troubleshooting
+## 13. 常見問題 Troubleshooting
 
 **Q: 找不到 Arduino（`/dev/ttyACM*` 不存在）**
 
@@ -721,7 +852,40 @@ docker logs pineapple-detection
 
 ---
 
-## 13. 系統限制與未來改進 Limitations
+**Q: 農民端 App 掃描後回傳 mock 資料而非真實推論**
+
+App 內建 fallback 邏輯：後端離線時自動回傳亂數模擬值。請至「設定」頁面確認後端 URL 填入正確的 RPi IP（如 `http://172.20.10.2:5000`），並確認 RPi 上 `app_local.py` 正在執行。
+
+測試連線：
+
+```bash
+# 在手機同一網路下，可先用瀏覽器確認 RPi 有回應
+http://172.20.10.2:5000/ping
+```
+
+---
+
+**Q: 農民端 App 首次開啟停在 Login 畫面**
+
+目前 Login 為展示用介面，無需真實帳密，直接點選登入按鈕即可進入主畫面。
+
+---
+
+**Q: 消費端 App 掃描紀錄上傳失敗，累積在 pending-uploads**
+
+1. 確認 App 設定頁的 API base URL 已填入 Gateway（`http://<RPi-IP>:5002`）或 RPi 直接 URL
+2. 確認手機與 RPi 在同一 Wi-Fi 下
+3. 至「待上傳」頁面，網路恢復後手動觸發批次重傳
+
+---
+
+**Q: 農民端 App 匯出報告按鈕無反應**
+
+確認批次狀態已標記為「完成（done）」，且有至少一筆掃描紀錄。若後端無 `/export` 路由，目前匯出功能為本機 CSV 存檔，需確認 `expo-file-system` 權限已開啟。
+
+---
+
+## 14. 系統限制與未來改進 Limitations
 
 | 項目 | 狀態 | 說明 |
 |------|------|------|
@@ -734,7 +898,7 @@ docker logs pineapple-detection
 
 ---
 
-## 14. 開發團隊 Team Members
+## 15. 開發團隊 Team Members
 
 長庚大學資訊工程學系
 
@@ -749,6 +913,6 @@ docker logs pineapple-detection
 
 ---
 
-## 15. 授權 License
+## 16. 授權 License
 
 本專案採用 [MIT License](../LICENSE) 授權。
