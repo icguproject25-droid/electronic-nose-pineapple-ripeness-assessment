@@ -4,6 +4,7 @@
 ### Pineapple Ripeness & Variety Detection System
 
 ### [🎬 期中 Demo 影片](https://drive.google.com/file/d/1zQTGWSUGKHxx7ukhSpP41EWQJNEOJPet/view?usp=drivesdk)
+### [🎬 期末 Demo 影片](https://drive.google.com/file/d/1Z_MbwVsv4nYf6GSiNdPcTrRvedTm5LH4/view?usp=drivesdk)
 
 *電子鼻 × 邊緣運算 × 機器學習 × 影像辨識*
 *Electronic Nose × Edge Computing × Machine Learning × Image Recognition*
@@ -633,7 +634,7 @@ electronic-nose-pineapple-ripeness-assessment/
 ## 12. Demo 影片與截圖 Demo Video & Screenshots
 
 - [期中 Demo 影片（Google Drive）](https://drive.google.com/file/d/1zQTGWSUGKHxx7ukhSpP41EWQJNEOJPet/view?usp=drivesdk)
-- 期末整合 Demo 影片：`Semester 2 Final Exam (三下-期末)/整合網頁/錄製內容 2026-05-16 151653.mp4`
+- [期末 Demo 影片（Google Drive）](https://drive.google.com/file/d/1Z_MbwVsv4nYf6GSiNdPcTrRvedTm5LH4/view?usp=drivesdk)
 - 成熟度時間軸圖：`enose_model_training/orkspace/stage_timeline.png`
 
 ---
