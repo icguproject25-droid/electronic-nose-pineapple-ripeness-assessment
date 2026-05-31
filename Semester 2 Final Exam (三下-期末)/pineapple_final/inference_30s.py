@@ -1,3 +1,4 @@
+# 匯入需要用到的套件：參數解析、檔案搜尋、JSON、模型讀取、正規表示式、時間控制等等
 import argparse
 import glob
 import json
@@ -7,17 +8,30 @@ import re
 import sys
 import time
 
+# 匯入數值運算和 Arduino Serial 通訊需要的套件
 import numpy as np
 import serial
 
+# ============================================================
+# 基本參數設定
+# ============================================================
+# 每次推論使用 30 秒的資料窗口
 WINDOW = 30
+
+# Arduino Serial baud rate，要和 Arduino 程式設定一致
 BAUD = 115200
+
+# Demo 模式的資料夾名稱，裡面放以前存好的 xlsx 感測資料
 DEMO_DIR = "demo_data"
 
+# 模型目前使用的五個氣體感測器
 SENSORS = ["MQ2", "MQ3", "MQ9", "MQ135", "TGS2602"]
+
+# 成熟度 stage 對應的中文名稱，後面印結果會用到
 STAGE_TEXT = {0: "未熟", 1: "初熟", 2: "成熟", 3: "過熟"}
 
 
+# 自動尋找 Arduino 的序列埠，通常會是 /dev/ttyACM0 或 /dev/ttyUSB0
 def auto_detect_port():
     ports = sorted(glob.glob("/dev/ttyACM*")) + sorted(glob.glob("/dev/ttyUSB*"))
     if not ports:
@@ -25,10 +39,12 @@ def auto_detect_port():
     return ports[0]
 
 
+# 安全計算比值，分母加一個很小的數，避免除以 0
 def safe_ratio(a, b):
     return float(a) / (float(b) + 1e-9)
 
 
+# 安全計算兩組資料的相關係數，資料太少或計算失敗就回傳 0
 def safe_corr(x, y):
     if len(x) < 2 or len(y) < 2:
         return 0.0
@@ -39,6 +55,7 @@ def safe_corr(x, y):
         return 0.0
 
 
+# 計算一段感測資料的斜率，用來看氣體訊號是上升還是下降
 def safe_slope(x):
     if len(x) < 2:
         return 0.0
@@ -48,6 +65,7 @@ def safe_slope(x):
         return 0.0
 
 
+# 計算相鄰資料差值的平均，觀察訊號變化速度
 def safe_mean_diff(x):
     if len(x) < 2:
         return 0.0
@@ -58,6 +76,7 @@ def safe_mean_diff(x):
         return 0.0
 
 
+# 計算曲線下面積 AUC，代表這段時間內訊號的累積量
 def safe_auc(x):
     try:
         if hasattr(np, "trapezoid"):
@@ -67,6 +86,7 @@ def safe_auc(x):
         return 0.0
 
 
+# 印出推論窗口內的原始感測器摘要，方便確認資料有沒有正常
 def print_sensor_summary(data):
     print("\n" + "=" * 60)
     print("📊 Raw sensor summary (inference window)")
@@ -76,6 +96,7 @@ def print_sensor_summary(data):
         print(f"{s:8s} | mean={np.mean(arr):8.3f} | min={np.min(arr):8.3f} | max={np.max(arr):8.3f} | std={np.std(arr):8.3f}")
 
 
+# 印出實際送進模型的特徵值，之後 debug 或報告展示會比較清楚
 def print_feature_summary(features_order, feat):
     print("\n" + "=" * 60)
     print("🧪 Feature values used by model")
@@ -84,17 +105,20 @@ def print_feature_summary(features_order, feat):
         print(f"{f:28s} = {feat.get(f, 0.0):.6f}")
 
 
+# 用四個 stage 的機率算出 0~100 的成熟度百分比
 def build_raw_maturity_percent(proba):
     score = (proba[0] * 0 + proba[1] * 1 + proba[2] * 2 + proba[3] * 3) / 3.0
     return int(round(score * 100))
 
 
+# 把百分比轉成文字版進度條，讓終端機輸出比較直覺
 def build_bar(percent):
     blocks = int(round(percent / 5))
     blocks = max(0, min(20, blocks))
     return "█" * blocks + "░" * (20 - blocks)
 
 
+# 根據成熟度百分比轉成區段文字
 def maturity_zone_text(percent):
     if percent <= 16:
         return "未熟區"
@@ -106,6 +130,7 @@ def maturity_zone_text(percent):
         return "過熟區"
 
 
+# 根據 Stage 3 的機率，顯示過熟傾向程度
 def overripe_tendency_text(p3):
     p = float(p3) * 100.0
     if p < 10:
@@ -118,6 +143,7 @@ def overripe_tendency_text(p3):
         return f"{p:.2f}%（高）"
 
 
+# 如果第一高和第二高的 stage 很接近，就顯示「接近某階段」
 def get_closest_stage_text(proba, pred):
     sorted_idx = np.argsort(proba)[::-1]
     top1 = int(sorted_idx[0])
@@ -127,6 +153,7 @@ def get_closest_stage_text(proba, pred):
     return STAGE_TEXT[top1]
 
 
+# 依照模型機率和 meta 設定，產生最後要顯示給使用者看的文字
 def get_display_text_from_meta(proba, pred, meta):
     if len(proba) >= 4:
         sorted_idx = np.argsort(proba)[::-1]
@@ -153,6 +180,7 @@ def get_display_text_from_meta(proba, pred, meta):
     return get_closest_stage_text(proba, pred)
 
 
+# 印出四個成熟度類別的機率，讓使用者知道模型是怎麼判斷的
 def print_probabilities(proba):
     print("\n" + "=" * 60)
     print("📈 詳細機率")
@@ -175,6 +203,7 @@ def print_probabilities(proba):
         print("✅ 這次預測相對明確")
 
 
+# 空氣/無樣本防呆，避免只有空氣時也被系統誤判成熟度
 def air_or_no_sample_guard(feat, proba=None):
     reasons = []
     mq2_mean_norm = float(feat.get("MQ2_mean_norm", 999.0))
@@ -216,6 +245,7 @@ def air_or_no_sample_guard(feat, proba=None):
     return (baseline_hits == 3 and weak_signal_hits >= 2), reasons
 
 
+# 早期熟度校正：避免未熟/初熟 demo 與實測樣本被原始模型拉成成熟
 def early_stage_override(pred, proba, feat):
     """早期熟度校正：避免未熟/初熟 demo 與實測樣本被原始模型拉成成熟。"""
     reasons = []
@@ -278,6 +308,7 @@ def early_stage_override(pred, proba, feat):
     return pred, False, reasons
 
 
+# 早期校正後，重新計算適合顯示的成熟度百分比
 def build_early_display_percent(final_pred, feat):
     tgs = float(feat.get("TGS2602_min_norm", 1.0))
     mq2 = float(feat.get("MQ2_mean_norm", 1.0))
@@ -292,6 +323,7 @@ def build_early_display_percent(final_pred, feat):
     return None
 
 
+# 過熟校正：如果模型原本判成熟，但過熟訊號很明顯，就可能校正為過熟
 def overripe_override(pred, proba, feat):
     """過熟校正 v2：避免早期訊號還很高時被 soft rule 拉成過熟。"""
     reasons = []
@@ -323,6 +355,7 @@ def overripe_override(pred, proba, feat):
     return pred, False, reasons
 
 
+# 如果啟用過熟校正，會把成熟度條提高到過熟區間；沒啟用就保留原始百分比
 def build_final_display_percent(raw_percent, final_pred, override_used, proba, feat):
     if not override_used or final_pred != 3:
         return raw_percent
@@ -338,6 +371,7 @@ def build_final_display_percent(raw_percent, final_pred, override_used, proba, f
     return max(raw_percent, override_percent)
 
 
+# 將 Arduino 傳來的一列資料轉成模型需要的五個感測器數值
 def parse_sensor_row(row_dict):
     try:
         return {"MQ2": float(row_dict["MQ2_raw"]), "MQ3": float(row_dict["MQ3_raw"]), "MQ9": float(row_dict["MQ9_raw"]), "MQ135": float(row_dict["MQ135_raw"]), "TGS2602": float(row_dict["TGS2602_raw"])}
@@ -345,6 +379,7 @@ def parse_sensor_row(row_dict):
         return None
 
 
+# 取得 air baseline 裡的基準值，如果資料不正常就用 1.0 防止錯誤
 def base_value(air, sensor_name):
     v = air.get(sensor_name, 1.0)
     if v is None or not np.isfinite(v) or v == 0:
@@ -352,6 +387,7 @@ def base_value(air, sensor_name):
     return float(v)
 
 
+# 根據 30 秒原始感測資料和 air baseline，建立模型需要的特徵
 def build_features(rows, air):
     data = {s: np.array([r[s] for r in rows], dtype=float) for s in SENSORS}
     feat = {}
@@ -373,11 +409,13 @@ def build_features(rows, air):
     return feat, data
 
 
+# 將鳳梨編號和日期整理成 demo 檔案使用的 case key 格式
 def normalize_case(pid: str, date: str) -> str:
     pid = str(pid).strip().replace("pineapple_", "")
     return f"pineapple_{pid}_{date}"
 
 
+# Demo 模式用：讀取 xlsx 檔案，找到 timestamp_ms 這一列作為資料表 header
 def load_xlsx_sensor_df(path: str):
     import pandas as pd
 
@@ -399,6 +437,7 @@ def load_xlsx_sensor_df(path: str):
     return df
 
 
+# 掃描 demo_data 資料夾內所有鳳梨樣本 xlsx，排除 air 校正檔
 def scan_pineapple_files(demo_dir=DEMO_DIR):
     pattern = os.path.join(demo_dir, "pineapple_*.xlsx")
     result = {}
@@ -412,6 +451,7 @@ def scan_pineapple_files(demo_dir=DEMO_DIR):
     return result
 
 
+# Demo 模式：從 xlsx 讀取鳳梨資料，不讀 Arduino 即時 Serial
 def collect_rows_from_demo(args):
     pine_files = scan_pineapple_files(args.demo_dir)
     if not pine_files:
@@ -471,6 +511,7 @@ def collect_rows_from_demo(args):
     return rows, case_key, stage_label
 
 
+# 實測模式：從 Arduino Serial 收集資料，並取最後 30 秒做模型推論
 def collect_rows_from_serial(args):
     WARMUP_SEC = max(0, int(args.warmup_sec))
     TOTAL_SEC = WARMUP_SEC + WINDOW
@@ -536,6 +577,7 @@ def collect_rows_from_serial(args):
     return rows, None, None
 
 
+# 讀取 JSON 檔，如果沒有檔案就回傳空字典，避免程式直接中斷
 def load_json_or_empty(path):
     if os.path.exists(path):
         with open(path, "r", encoding="utf-8") as f:
@@ -543,7 +585,9 @@ def load_json_or_empty(path):
     return {}
 
 
+# 主程式：負責解析參數、收集資料、載入模型、建立特徵、推論和輸出結果
 def main():
+    # 建立命令列參數，讓使用者可以選擇實測模式、Demo 模式、模型檔案等
     parser = argparse.ArgumentParser()
     parser.add_argument("--warmup-sec", type=int, default=0, help="前置累積秒數")
     parser.add_argument("--port", type=str, default=None, help="指定 Arduino port，例如 /dev/ttyACM0")
@@ -560,6 +604,7 @@ def main():
     args = parser.parse_args()
 
     print("🍍 Pineapple ripeness detection (30 sec mode)")
+    # 如果有 demo 相關參數，就走 Demo xlsx 模式；否則就讀 Arduino 即時資料
     if args.demo or args.demo_case or args.demo_stage or (args.pid and args.date):
         print("Mode: DEMO xlsx mode")
         print("Warmup sec: 0")
@@ -569,11 +614,18 @@ def main():
         print("Mode: REAL Arduino Serial mode")
         rows, demo_case, demo_stage = collect_rows_from_serial(args)
 
+    # 載入訓練好的模型檔案
     with open(args.model, "rb") as f:
         model = pickle.load(f)
+
+    # 載入模型需要的特徵欄位順序，順序要和訓練時一致
     with open(args.features, "r", encoding="utf-8") as f:
         feature_columns = json.load(f)
+
+    # 載入模型相關設定，例如 target window、顯示規則等等
     meta = load_json_or_empty(args.meta)
+
+    # 載入 air baseline，後面做特徵正規化會用到
     with open(args.air, "r", encoding="utf-8") as f:
         air = json.load(f)
 
@@ -582,12 +634,18 @@ def main():
     print(f"Target window: {meta.get('target_window_sec', WINDOW) if isinstance(meta, dict) else WINDOW} sec")
     print(f"Air baseline loaded from {args.air}")
 
+    # 將原始資料轉成模型特徵，並印出摘要方便檢查
     feat, data = build_features(rows, air)
     print_sensor_summary(data)
     print_feature_summary(feature_columns, feat)
 
+    # 按照 feature_columns 的順序組成模型輸入 X
     X = np.array([feat.get(f, 0.0) for f in feature_columns], dtype=float).reshape(1, -1)
+
+    # 取得模型原始分類結果
     raw_pred = int(model.predict(X)[0])
+
+    # 如果模型有 predict_proba，就輸出四類機率；沒有的話就只給預測類別 100%
     if hasattr(model, "predict_proba"):
         proba = model.predict_proba(X)[0]
     else:
@@ -596,9 +654,11 @@ def main():
 
     print_probabilities(proba)
 
+    # 防呆檢查：判斷是否像空氣或沒有有效鳳梨訊號
     guard_triggered, guard_reasons = air_or_no_sample_guard(feat, proba=proba)
     display_text = get_display_text_from_meta(proba, raw_pred, meta)
 
+    # 先做早期熟度校正，避免未熟/初熟被誤判為成熟
     early_pred, early_override_used, early_override_reasons = early_stage_override(raw_pred, proba, feat)
     if early_override_used:
         final_pred = early_pred
@@ -611,10 +671,12 @@ def main():
         else:
             display_text = STAGE_TEXT.get(final_pred, str(final_pred))
     else:
+        # 如果沒有啟用早期校正，再檢查是否需要過熟校正
         final_pred, override_used, override_reasons = overripe_override(raw_pred, proba, feat)
         if override_used:
             display_text = "過熟"
 
+    # 計算原始與最後顯示用的成熟度百分比
     raw_maturity_percent = build_raw_maturity_percent(proba)
     if early_override_used:
         final_maturity_percent = build_early_display_percent(final_pred, feat)
@@ -627,6 +689,7 @@ def main():
     zone_text = maturity_zone_text(final_maturity_percent)
     overripe_text = overripe_tendency_text(proba[3])
 
+    # 最後整理並印出結果，Flask 網頁會解析這些文字
     print("\n" + "=" * 60)
     print("🍍 結果")
     print("=" * 60)
@@ -677,5 +740,6 @@ def main():
     print("Program finished")
 
 
+# 只有直接執行這支檔案時，才會呼叫 main()
 if __name__ == "__main__":
     main()

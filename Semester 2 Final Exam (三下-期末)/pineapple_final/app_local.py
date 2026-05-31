@@ -1,31 +1,48 @@
+# 匯入 Flask 需要用到的功能：建立網頁、渲染 HTML 字串、接收表單資料
 from flask import Flask, render_template_string, request
+# json 用來處理 Raspberry Pi 回傳的 JSON 格式資料
 import json
+# re 用來用正規表示式解析終端機輸出的文字
 import re
+# paramiko 用來透過 SSH 連線到 Raspberry Pi 執行指令
 import paramiko
+# shlex 用來把指令參數安全地加上引號，避免空白或特殊字元造成錯誤
 import shlex
 
+# 建立 Flask app，後面所有網頁路由都會掛在這個 app 上
 app = Flask(__name__)
 
 # ============================================================
 # Raspberry Pi 設定
 # ============================================================
+# Raspberry Pi 的登入帳號
 RPI_USER = "linguanyu"
+# Raspberry Pi 的登入密碼（正式版建議改成環境變數，不要直接寫在程式裡）
 RPI_PASSWORD = "DdoKk///23"
+# Raspberry Pi 的 IP 位址，網路不同時這裡可能要改
 RPI_IP = "172.20.10.2"
+# Raspberry Pi 上成熟度辨識專案所在的資料夾
 RPI_PROJECT_DIR = "/home/linguanyu/pineapple"
 
+# 啟動 Raspberry Pi 專案裡的 Python 虛擬環境
 RPI_ACTIVATE = "source .venv/bin/activate"
+# 空氣基線校正程式名稱
 AIR_SCRIPT = "calibrate_air_30s.py"
+# 鳳梨成熟度推論程式名稱
 INFER_SCRIPT = "inference_30s.py"
 
 
 # ============================================================
 # SSH 工具
 # ============================================================
+# 這個函式負責用 SSH 連到 Raspberry Pi，並執行指定的終端機指令
 def run_remote_command(remote_cmd, timeout=420):
+    # 建立 SSH 連線物件
     client = paramiko.SSHClient()
+    # 第一次連線時自動接受 Raspberry Pi 的 host key
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
+        # 使用上面設定的 IP、帳號、密碼連線到 Raspberry Pi
         client.connect(
             hostname=RPI_IP,
             username=RPI_USER,
@@ -34,15 +51,23 @@ def run_remote_command(remote_cmd, timeout=420):
             banner_timeout=15,
             auth_timeout=15,
         )
+        # 在 Raspberry Pi 上執行傳進來的指令
         stdin, stdout, stderr = client.exec_command(remote_cmd, timeout=timeout)
+        # 讀取正常輸出，並轉成文字
         out_text = stdout.read().decode("utf-8", errors="replace")
+        # 讀取錯誤輸出，並轉成文字
         err_text = stderr.read().decode("utf-8", errors="replace")
+        # 如果有正常輸出就先放進 output
         output = out_text or ""
+        # 如果有錯誤訊息，也一起加到 output，方便網頁上顯示除錯資訊
         if err_text:
             output += "\n[stderr]\n" + err_text
+        # 回傳整理過的輸出；如果完全沒有輸出，就顯示提示文字
         return output.strip() or "(沒有輸出)"
+    # 如果 SSH 連線或指令執行失敗，就把錯誤訊息回傳給網頁
     except Exception as e:
         return f"執行失敗：{e}"
+    # 不管成功或失敗，最後都要嘗試關閉 SSH 連線
     finally:
         try:
             client.close()
@@ -50,19 +75,26 @@ def run_remote_command(remote_cmd, timeout=420):
             pass
 
 
+# 這個函式專門用來執行 Raspberry Pi 專案資料夾裡的 Python script
 def run_remote_script(script_name, args=""):
+    # 把 script 名稱做安全處理，避免指令格式出錯
     safe_script = shlex.quote(script_name)
+    # 去掉參數前後多餘空白
     safe_args = args.strip()
+    # 組合要送到 Raspberry Pi 執行的完整指令
     remote_cmd = (
         f"cd {shlex.quote(RPI_PROJECT_DIR)} && "
         f"{RPI_ACTIVATE} && "
         f"python {safe_script} {safe_args}"
     )
+    # 實際透過 SSH 執行組好的指令
     return run_remote_command(remote_cmd, timeout=420)
 
 
+# 掃描 Raspberry Pi 上 demo_data 裡有哪些可以用的 xlsx demo 檔
 def scan_remote_demo_files():
     """掃描 Pi 上 pineapple/demo_data 的 xlsx 檔，給 demo 下拉選單用。"""
+    # 這裡放一小段會在 Raspberry Pi 上執行的 Python 程式，用來列出 demo 檔案
     py = r'''
 import glob, os, re, json
 DEMO_DIR="demo_data"
@@ -78,34 +110,45 @@ for f in sorted(glob.glob(os.path.join(DEMO_DIR,"pineapple_*.xlsx"))):
         pine.append([m.group(1), m.group(2)])
 print(json.dumps({"air":air,"pine":pine}, ensure_ascii=False))
 '''
+    # 把上面那段 Python 程式包成遠端終端機指令
     cmd = (
         f"cd {shlex.quote(RPI_PROJECT_DIR)} && "
         f"python - <<'PYREMOTE'\n{py}\nPYREMOTE"
     )
+    # 執行掃描 demo 檔案的遠端指令
     out = run_remote_command(cmd, timeout=30)
     try:
+        # 從遠端輸出中抓出 JSON 物件
         m = re.search(r"(\{[\s\S]*\})", out)
         if not m:
             raise ValueError(out)
+        # 把 JSON 字串轉成 Python dictionary
         data = json.loads(m.group(1))
+        # 整理空氣校正 demo 清單，並去除重複
         air = sorted(set(data.get("air", [])))
+        # 整理鳳梨推論 demo 清單
         pine = sorted([tuple(x) for x in data.get("pine", [])])
+        # 回傳空氣 demo 和鳳梨 demo 的檔案清單
         return air, pine
     except Exception:
+        # 如果掃描失敗，就回傳空清單，避免整個網頁掛掉
         return [], []
 
 
 # ============================================================
 # 小工具
 # ============================================================
+# 把 stage 數字轉成中文成熟度名稱
 def stage_name(stage):
     return {0: "未熟", 1: "初熟", 2: "成熟", 3: "過熟"}.get(stage, f"Stage {stage}")
 
 
+# 根據 stage 回傳對應顏色，讓網頁長條圖比較直觀
 def stage_color(stage):
     return {0: "#3b82f6", 1: "#22c55e", 2: "#f59e0b", 3: "#ef4444"}.get(stage, "#6b7280")
 
 
+# 把 demo 檔案名稱整理成比較好讀的顯示文字
 def case_display(case_key: str) -> str:
     m = re.search(r"^pineapple_(\w+)_(\d{8})$", case_key or "")
     if not m:
@@ -113,6 +156,7 @@ def case_display(case_key: str) -> str:
     return f"pineapple_{m.group(1)} / {m.group(2)}"
 
 
+# 根據判定文字選擇結果標籤的 CSS 顏色 class
 def badge_class_from_text(text: str):
     if not text:
         return "tag-gray"
@@ -129,6 +173,7 @@ def badge_class_from_text(text: str):
     return "tag-gray"
 
 
+# 根據前置累積秒數顯示目前是哪一種檢測模式
 def mode_name_from_warmup(warmup_sec: int):
     if warmup_sec <= 0:
         return "快速檢測"
@@ -142,25 +187,35 @@ def mode_name_from_warmup(warmup_sec: int):
 # ============================================================
 # 解析 air / inference 結果
 # ============================================================
+# 解析空氣校正程式的終端機輸出，整理成網頁可以顯示的資料
 def parse_air_output(output: str):
+    # 先建立預設結果，避免解析失敗時沒有欄位可以顯示
     data = {"type": "air", "success": False, "port": None, "baseline": None, "raw_output": output}
+    # 從輸出中找 Arduino 使用的序列埠
     m_port = re.search(r"Arduino port:\s*(.+)", output)
     if m_port:
         data["port"] = m_port.group(1).strip()
+    # 如果是 demo 模式，就抓出目前使用的 demo case
     m_case = re.search(r"Demo case:\s*(.+)", output)
     if m_case:
         data["demo_case"] = m_case.group(1).strip()
+    # 從輸出最後抓出 air baseline 的 JSON 內容
     m_json = re.search(r"(\{[\s\S]*\})\s*$", output.strip())
     if m_json:
         try:
+            # 把 baseline JSON 轉成 Python dictionary
             data["baseline"] = json.loads(m_json.group(1))
+            # 解析成功就標記為成功
             data["success"] = True
         except Exception:
             pass
+    # 回傳解析好的推論結果
     return data
 
 
+# 解析成熟度推論程式的終端機輸出，整理成前端頁面需要的資料
 def parse_infer_output(output: str):
+    # 建立推論結果的預設資料結構，後面會慢慢把解析到的內容填進去
     data = {
         "type": "infer", "success": False, "port": None, "feature_count": None,
         "target_window": None, "warmup_sec": None, "measure_mode": None,
@@ -173,6 +228,7 @@ def parse_infer_output(output: str):
         "probabilities": [], "sensor_summary": [], "feature_values": [], "raw_output": output,
     }
 
+    # 這裡集中放要從輸出中抓的基本欄位和對應的正規表示式
     patterns = {
         "port": r"Arduino port:\s*(.+)",
         "feature_count": r"Feature count:\s*(\d+)",
@@ -182,54 +238,70 @@ def parse_infer_output(output: str):
         "maturity_zone": r"成熟區段：(.+)",
         "overripe_tendency": r"過熟傾向：(.+)",
     }
+    # 逐一套用上面的 pattern，把有找到的欄位填進 data
     for key, pat in patterns.items():
+        # 用正規表示式在輸出文字中找資料
         m = re.search(pat, output)
         if m:
             val = m.group(1).strip()
+            # 這幾個欄位應該是數字，所以轉成 int
             if key in ["feature_count", "target_window", "warmup_sec"]:
                 val = int(val)
             data[key] = val
 
+    # 如果有抓到 warmup 秒數，就順便轉成模式名稱
     if data["warmup_sec"] is not None:
         data["measure_mode"] = mode_name_from_warmup(data["warmup_sec"])
 
+    # 如果輸出是 demo 模式，就抓出 demo 日期和標籤
     m_demo = re.search(r"【模擬模式】日期：(.+?)\s+標籤：(.+)", output)
     if m_demo:
         data["demo_case"] = m_demo.group(1).strip()
         data["demo_stage"] = m_demo.group(2).strip()
         data["measure_mode"] = "Demo 模擬模式"
 
+    # 抓出模型原始預測的 stage
     m_raw = re.search(r"原始模型分類：Stage\s*(\d+)\s*（(.+?)）", output)
     if m_raw:
         data["raw_stage"] = int(m_raw.group(1))
         data["raw_stage_text"] = m_raw.group(2).strip()
 
+    # 抓出校正後的最終 stage
     m_final = re.search(r"校正後分類：Stage\s*(\d+)\s*（(.+?)）", output)
     if m_final:
         data["final_stage"] = int(m_final.group(1))
         data["final_stage_text"] = m_final.group(2).strip()
+    # 如果校正後沒有 stage，就用 None 表示
     if "校正後分類：—" in output:
         data["final_stage"] = None
         data["final_stage_text"] = None
 
+    # 抓出原始成熟度百分比
     m_raw_bar = re.search(r"原始成熟度條：\[.*?\]\s*(\d+)%", output)
     if m_raw_bar:
         data["raw_maturity_percent"] = int(m_raw_bar.group(1))
+    # 抓出校正後成熟度百分比
     m_final_bar = re.search(r"校正後成熟度條：\[.*?\]\s*(\d+)%", output)
     if m_final_bar:
         data["final_maturity_percent"] = int(m_final_bar.group(1))
     if data["raw_maturity_percent"] is None and data["final_maturity_percent"] is None:
+        # 有些輸出只有一條成熟度條，所以另外處理
         m_single_bar = re.search(r"成熟度條：\[.*?\]\s*(\d+)%", output)
         if m_single_bar:
             data["final_maturity_percent"] = int(m_single_bar.group(1))
     if data["raw_maturity_percent"] is None and data["final_maturity_percent"] is not None:
         data["raw_maturity_percent"] = data["final_maturity_percent"]
 
+    # 判斷空氣或無樣本防呆規則是否有被觸發
     data["guard_triggered"] = "空氣/無樣本防呆：✅ 已觸發" in output
+    # 判斷早期熟度校正是否有被啟用
     data["early_override_used"] = "早期熟度校正：✅ 已啟用" in output
+    # 判斷過熟校正是否有被啟用
     data["override_used"] = "過熟校正：✅ 已啟用" in output
 
+    # 抓出四個 Stage 的機率數值，等等用來畫長條圖
     prob_matches = re.findall(r"Stage\s*(\d+)\s*（.*?）:\s*([0-9.]+)\s*\(([0-9.]+)%\)", output)
+    # 把機率資料整理成 list，每個 stage 都包含名稱、機率、百分比和顏色
     data["probabilities"] = [{
         "stage": int(i), "stage_text": stage_name(int(i)), "prob": float(p),
         "percent": float(pct), "color": stage_color(int(i))
@@ -237,47 +309,65 @@ def parse_infer_output(output: str):
 
     m_sensor_block = re.search(r"Raw sensor summary.*?\n=+\n([\s\S]*?)\n=+\n.*?Feature values used by model", output)
     if m_sensor_block:
+        # 用來存每個 sensor 的 mean/min/max/std
         parsed = []
+        # 逐行解析感測器摘要
         for line in m_sensor_block.group(1).strip().splitlines():
             m = re.match(r"([A-Za-z0-9_]+)\s*\|\s*mean=\s*([0-9.\-]+)\s*\|\s*min=\s*([0-9.\-]+)\s*\|\s*max=\s*([0-9.\-]+)\s*\|\s*std=\s*([0-9.\-]+)", line.strip())
+            # 如果該行格式符合，就加入 sensor summary
             if m:
                 parsed.append({"name": m.group(1), "mean": float(m.group(2)), "min": float(m.group(3)), "max": float(m.group(4)), "std": float(m.group(5))})
+        # 把解析完的感測器摘要放進 data
         data["sensor_summary"] = parsed
 
     m_feat_block = re.search(r"Feature values used by model.*?\n=+\n([\s\S]*?)\n=+\n.*?(?:詳細機率|Class probabilities)", output)
     if m_feat_block:
+        # 用來存放每個 feature 的名稱和數值
         feats = []
+        # 逐行解析 feature value
         for line in m_feat_block.group(1).strip().splitlines():
             if "=" in line:
                 name, val = line.split("=", 1)
+                # 嘗試把 feature value 轉成 float
                 try:
                     value = float(val.strip())
                 except Exception:
                     value = val.strip()
                 feats.append({"name": name.strip(), "value": value})
+        # 把解析完的特徵值放進 data
         data["feature_values"] = feats
 
+    # current_mode 用來判斷目前正在讀哪一種校正依據
     current_mode = None
+    # 逐行掃描輸出，整理 guard / early / overripe 的判定理由
     for raw_line in output.splitlines():
         line = raw_line.strip()
+        # 接下來的 - 開頭文字屬於空氣/無樣本防呆依據
         if line.startswith("判定依據："):
             current_mode = "guard"; continue
+        # 接下來的 - 開頭文字屬於早期校正依據
         if line.startswith("早期校正依據："):
             current_mode = "early"; continue
+        # 接下來的 - 開頭文字屬於過熟校正依據
         if line.startswith("校正依據："):
             current_mode = "override"; continue
+        # 遇到分隔線或結束文字，就停止目前的依據區塊
         if line.startswith("=") or line.startswith("Program finished") or line.startswith("🍍 結果"):
             current_mode = None; continue
+        # 把 - 開頭的理由加入對應的 list
         if line.startswith("- "):
             if current_mode == "guard": data["guard_reasons"].append(line[2:].strip())
             elif current_mode == "early": data["early_override_reasons"].append(line[2:].strip())
             elif current_mode == "override": data["override_reasons"].append(line[2:].strip())
 
+    # 只要有抓到判定文字或 stage，就算推論解析成功
     if data["display_text"] or data["raw_stage"] is not None:
         data["success"] = True
+    # 回傳解析好的推論結果
     return data
 
 
+# 這裡是整個 Flask 頁面的 HTML/CSS/JavaScript，直接用字串存在 Python 裡
 HTML_PAGE = """
 <!doctype html>
 <html>
@@ -331,10 +421,15 @@ function updateDemoStages(){const d=document.getElementById('demo_case');const s
 """
 
 
+# 把目前資料丟進 HTML template，產生最後要回傳給瀏覽器的頁面
 def render_page(output="", parsed=None, mode="none", selected_air_case="", selected_pine_case="", selected_stage="", badge_class="tag-gray"):
+    # 每次 render 頁面時，都重新掃描 Raspberry Pi 上的 demo 檔案
     air_cases, pine_keys = scan_remote_demo_files()
+    # 取出所有不重複的鳳梨 demo case
     pine_cases = sorted(set(c for c, _ in pine_keys))
+    # 建立檔名到顯示文字的對照表
     display_map = {k: case_display(k) for k in set(air_cases + pine_cases)}
+    # 使用 Flask 的 render_template_string 把 HTML 字串和資料合成網頁
     return render_template_string(
         HTML_PAGE,
         output=output, parsed=parsed, mode=mode,
@@ -348,25 +443,38 @@ def render_page(output="", parsed=None, mode="none", selected_air_case="", selec
     )
 
 
+# 首頁路由：使用者打開網頁時會先進到這裡
 @app.route("/")
+# 顯示初始頁面，目前還沒有執行任何檢測
 def index():
     return render_page()
 
 
+# 空氣校正路由：按下空氣校正按鈕後會送 POST 到這裡
 @app.route("/air", methods=["POST"])
+# 執行 Raspberry Pi 上的空氣校正程式，並顯示解析後結果
 def run_air():
+    # 遠端執行 calibrate_air_30s.py
     output = run_remote_script(AIR_SCRIPT)
+    # 解析空氣校正的輸出
     parsed = parse_air_output(output)
     return render_page(output=output, parsed=parsed, mode="air")
 
 
+# 實測推論路由：按下快速/標準/完整檢測時會送 POST 到這裡
 @app.route("/infer", methods=["POST"])
+# 根據表單給的 warmup 秒數執行成熟度推論
 def run_infer():
+    # 從表單取得前置累積秒數，預設為 0 秒
     warmup_sec = request.form.get("warmup_sec", "0").strip()
+    # 如果收到的不是數字，就改回 0，避免指令錯誤
     if not warmup_sec.isdigit():
         warmup_sec = "0"
+    # 組成要傳給 inference_30s.py 的參數
     args = f"--warmup-sec {int(warmup_sec)}"
+    # 遠端執行 inference_30s.py
     output = run_remote_script(INFER_SCRIPT, args=args)
+    # 解析推論結果文字
     parsed = parse_infer_output(output)
     if parsed.get("warmup_sec") is None:
         parsed["warmup_sec"] = int(warmup_sec)
@@ -374,21 +482,33 @@ def run_infer():
     return render_page(output=output, parsed=parsed, mode="infer", badge_class=badge_class_from_text(parsed.get("display_text", "")))
 
 
+# Demo 空氣校正路由：使用 xlsx demo 檔建立 air baseline
 @app.route("/demo_air", methods=["POST"])
+# 執行 demo 模式的空氣校正
 def run_demo_air():
+    # 從下拉選單取得使用者選的空氣 demo case
     demo_case = request.form.get("demo_case_air", "").strip()
+    # 組成 demo 空氣校正需要的參數
     args = f"--demo --demo-case {shlex.quote(demo_case)}"
     output = run_remote_script(AIR_SCRIPT, args=args)
+    # 解析空氣校正的輸出
     parsed = parse_air_output(output)
     return render_page(output=output, parsed=parsed, mode="air", selected_air_case=demo_case)
 
 
+# Demo 推論路由：使用 demo_data 的 xlsx 檔做鳳梨成熟度推論
 @app.route("/demo_infer", methods=["POST"])
+# 執行 demo 模式的鳳梨成熟度推論
 def run_demo_infer():
+    # 取得使用者選的鳳梨 demo case
     demo_case = request.form.get("demo_case", "").strip()
+    # 取得使用者選的 demo 熟度標籤
     demo_stage = request.form.get("demo_stage", "").strip()
+    # 組成 demo 推論需要的參數
     args = f"--demo --demo-case {shlex.quote(demo_case)} --demo-stage {shlex.quote(demo_stage)}"
+    # 遠端執行 inference_30s.py
     output = run_remote_script(INFER_SCRIPT, args=args)
+    # 解析推論結果文字
     parsed = parse_infer_output(output)
     return render_page(
         output=output, parsed=parsed, mode="infer",
@@ -397,7 +517,11 @@ def run_demo_infer():
     )
 
 
+# 如果這個檔案是直接被執行，就啟動 Flask 伺服器
 if __name__ == "__main__":
+    # 在終端機顯示啟動提示
     print("Local Web App Running")
+    # 提醒使用者可以用瀏覽器打開這個網址
     print("Open Browser: http://127.0.0.1:5000")
+    # 啟動 Flask，host=0.0.0.0 表示同網路其他裝置也可以連進來
     app.run(host="0.0.0.0", port=5000, debug=False)
