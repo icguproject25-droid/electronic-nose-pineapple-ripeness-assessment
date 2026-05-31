@@ -5,6 +5,8 @@
 
 *電子鼻成熟度辨識 × 影像品種辨識 × 整合 Web 介面 × 行動 App*
 
+### [🎬 期末 Demo 影片](https://drive.google.com/file/d/1Z_MbwVsv4nYf6GSiNdPcTrRvedTm5LH4/view?usp=drivesdk)
+
 ![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.1+-000000?style=flat-square&logo=flask&logoColor=white)
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-ExtraTrees-F7931E?style=flat-square&logo=scikit-learn&logoColor=white)
@@ -719,7 +721,13 @@ Semester 2 Final Exam (三下-期末)/
 
 ---
 
-## 12. 正式展示流程 Demo Presentation Flow
+## 12. Demo 影片 Demo Video
+
+- [🎬 期末整合 Demo 影片（Google Drive）](https://drive.google.com/file/d/1Z_MbwVsv4nYf6GSiNdPcTrRvedTm5LH4/view?usp=drivesdk)
+
+---
+
+## 13. 正式展示流程 Demo Presentation Flow
 
 ```
 展示前準備
@@ -760,7 +768,7 @@ Raspberry Pi（接著啟動）
 
 ---
 
-## 13. 常見問題 Troubleshooting
+## 14. 常見問題 Troubleshooting
 
 **Q: 找不到 Arduino（`/dev/ttyACM*` 不存在）**
 
@@ -885,7 +893,7 @@ http://172.20.10.2:5000/ping
 
 ---
 
-## 14. 系統限制與未來改進 Limitations
+## 15. 系統限制與未來改進 Limitations
 
 | 項目 | 狀態 | 說明 |
 |------|------|------|
@@ -898,7 +906,7 @@ http://172.20.10.2:5000/ping
 
 ---
 
-## 15. 開發團隊 Team Members
+## 16. 開發團隊 Team Members
 
 長庚大學資訊工程學系
 
@@ -913,6 +921,6 @@ http://172.20.10.2:5000/ping
 
 ---
 
-## 16. 授權 License
+## 17. 授權 License
 
 本專案採用 [MIT License](../LICENSE) 授權。
