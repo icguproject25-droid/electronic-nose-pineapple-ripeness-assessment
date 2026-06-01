@@ -749,3 +749,169 @@ docker compose down && docker compose up -d
 ## 15. 授權 License
 
 本專案採用 [MIT License](LICENSE) 授權。
+
+---
+
+## 16. 農民端 App 補充專案說明 Farmer App Addendum
+
+> 本段為新增補充內容；原 README 既有章節保留不變。  
+> 參考專案：[`Tinazhen/Farmer_pineapple`](https://github.com/Tinazhen/Farmer_pineapple)
+
+### 16.1 專案定位
+
+農民端 App 是本系統面向農民、集貨場與驗收人員的行動操作介面，主要目的不是單顆展示，而是協助使用者進行**批次化鳳梨熟度檢測、結果彙整、統計分析與報表管理**。
+
+相較於消費端 App 偏向「單顆掃描、食用建議、知識內容」，農民端 App 更重視：
+
+- 批次建立與批次狀態管理
+- 多顆鳳梨連續掃描
+- 熟度分布統計
+- 採收與分級決策輔助
+- 報表輸出與歷史批次追蹤
+
+### 16.2 核心使用情境
+
+| 使用者 | 使用情境 | App 提供的協助 |
+|--------|----------|----------------|
+| 農民 | 採收前快速判斷整批鳳梨熟度 | 建立批次、連續掃描、查看成熟比例 |
+| 集貨場人員 | 驗收與分級 | 批次結果彙整、異常提示、報表輸出 |
+| 專題展示人員 | 展示電子鼻推論流程 | 可連接 RPi API，也可使用模擬資料展示 |
+
+### 16.3 主要頁面與功能
+
+| 頁面 / 模組 | 功能說明 |
+|-------------|----------|
+| **Farmer Home / 農民首頁** | 顯示批次概況、今日掃描統計、快速進入新建批次或開始掃描 |
+| **Batch Create / 批次建立** | 輸入批次名稱、數量、日期、田區或用途等資訊，建立批次 ID |
+| **Batch Scan / 批次掃描** | 連續掃描多顆鳳梨，將每次電子鼻推論結果加入同一批次 |
+| **Batch Result / 批次結果** | 彙整整批鳳梨的熟度分布、平均信心值與統計摘要 |
+| **Report Analysis / 報表分析** | 以圖表方式呈現批次熟度比例，支援後續 PDF / 圖表匯出規劃 |
+| **Batch History / 批次歷史** | 查詢、篩選與管理過去批次紀錄 |
+| **Settings / 設定** | 設定 Raspberry Pi / Gateway API URL、語言、展示模式與相關參數 |
+
+### 16.4 農民端操作流程
+
+```text
+進入農民端 App
+      ↓
+建立新批次 / 選擇既有批次
+      ↓
+放置鳳梨並開始掃描
+      ↓
+App 呼叫 Raspberry Pi / Gateway API
+      ↓
+接收電子鼻模型推論結果
+      ↓
+將單筆結果加入批次紀錄
+      ↓
+完成批次後產生統計摘要與報表
+      ↓
+儲存至批次歷史，供後續追蹤與比較
+```
+
+### 16.5 API 串接設計
+
+農民端 App 主要透過 Gateway 或 Raspberry Pi API 取得電子鼻推論結果。
+
+```http
+GET  /ping
+POST /scan/start
+```
+
+**用途說明：**
+
+| API | 功能 |
+|-----|------|
+| `GET /ping` | 確認後端、Raspberry Pi 或 Gateway 是否上線 |
+| `POST /scan/start` | 觸發一次 30 秒電子鼻掃描，回傳成熟度、信心值與相關判斷結果 |
+
+**範例回傳格式：**
+
+```json
+{
+  "stage": 2,
+  "label": "成熟",
+  "ripeness": "ripe",
+  "confidence": 0.82,
+  "anomaly_flag": "normal"
+}
+```
+
+若展示現場後端未連線，農民端可保留 mock / fallback 顯示邏輯，用於 Demo 展示批次流程；正式測試時則應連接 Raspberry Pi 或 Gateway 實際推論結果。
+
+### 16.6 與電子鼻主系統的關係
+
+```text
+Farmer App
+   ↓
+App API Gateway / Raspberry Pi API
+   ↓
+Raspberry Pi 3
+   ↓
+inference_30s.py
+   ↓
+ExtraTrees 成熟度模型
+   ↓
+Stage 0 / Stage 1 / Stage 2 / Stage 3
+   ↓
+批次統計、報表分析、歷史紀錄
+```
+
+農民端 App 不直接處理感測器原始訊號，而是負責把後端推論結果轉換成農民可理解、可管理、可決策的批次資訊。
+
+### 16.7 UI / UX 設計重點
+
+農民端介面設計以田間與集貨場操作情境為主，因此採用：
+
+- 大按鈕：方便戶外或快速操作
+- 高對比：提升日光環境下的可讀性
+- 圖像化熟度標籤：降低文字判讀負擔
+- 批次卡片：快速查看批次狀態
+- 圖表化統計：用圓餅圖或長條圖呈現成熟度比例
+- 中英雙語：支援中文 / English 切換
+
+### 16.8 技術棧
+
+| 類別 | 技術 |
+|------|------|
+| App Framework | React Native / Expo |
+| Language | TypeScript |
+| Routing | Expo Router |
+| State Management | Zustand |
+| API State | React Query |
+| Chart / SVG | react-native-svg |
+| Backend Connection | Flask Gateway / Raspberry Pi API |
+| Model Source | ExtraTrees electronic-nose inference result |
+
+### 16.9 建議專案結構
+
+```text
+Farmer_pineapple/
+├── app/
+│   ├── index.tsx                 # 農民首頁
+│   ├── batches.tsx               # 批次管理
+│   ├── batch-create.tsx          # 建立批次
+│   ├── batch-scan.tsx            # 批次掃描
+│   ├── batch-result.tsx          # 批次結果
+│   ├── report-analysis.tsx       # 報表分析
+│   └── settings.tsx              # 設定頁
+├── components/
+│   ├── BatchCard.tsx             # 批次卡片
+│   ├── RipenessPieChart.tsx      # 熟度分布圖
+│   └── StatCard.tsx              # 統計摘要卡片
+├── stores/
+│   └── batchStore.ts             # 批次資料狀態
+├── services/
+│   └── api.ts                    # API 呼叫封裝
+└── README.md
+```
+
+### 16.10 後續擴充方向
+
+- 匯出 PDF 批次報告
+- 支援 Excel / CSV 匯出
+- 增加不同田區、採收日期與用途分類
+- 加入離線暫存與恢復上傳
+- 加入批次趨勢比較
+- 支援更多鳳梨品種或其他水果模型
+- 加入使用者權限與正式登入機制
