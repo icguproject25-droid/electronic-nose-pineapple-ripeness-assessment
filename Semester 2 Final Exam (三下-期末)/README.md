@@ -90,6 +90,7 @@
 | `pineapple_app_gateway/` | App / Web 的 API 中繼，部署於 Raspberry Pi |
 | `整合網頁/pineapple_unified_web/` | 整合入口網站，部署於 Raspberry Pi |
 | `app/Consumer_pineapple-ripeness-main/` | 消費端 React Native App (Expo) |
+| `app/Farmer_pineapple-main/` | 農民端 React Native App (Expo)，批次掃描與報表管理 |
 | `enose_model_training/` | 模型訓練 Notebook 與部署包（離線使用） |
 | `pineapple_deployment_system/` | Arduino 韌體（`use_this/use_this.ino`） |
 
@@ -152,6 +153,16 @@ Flask
 
 無獨立 requirements，執行 `pip install flask` 即可。
 
+### 5.5 行動 App
+
+```
+Expo Router
+TypeScript
+Zustand
+React Query
+react-native-svg
+```
+
 ---
 
 ## 6. 安裝 Installation
@@ -166,13 +177,9 @@ Flask
 ### 6.2 電子鼻主系統（Raspberry Pi）
 
 ```bash
-# 從 PC 上傳到 RPi（取代舊版 pineapple 資料夾）
 scp -r pineapple_final pi@<RPi-IP>:/home/pi/pineapple_final
-
-# SSH 進 RPi
 ssh pi@<RPi-IP>
 cd ~/pineapple_final
-
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
@@ -183,8 +190,6 @@ pip install -r requirements_rpi.txt
 
 ```bash
 scp -r pineapple_app_gateway pi@<RPi-IP>:/home/pi/pineapple_app_gateway
-
-# 在 RPi 上
 cd ~/pineapple_app_gateway
 python3 -m venv .venv
 source .venv/bin/activate
@@ -206,13 +211,10 @@ pip install -r requirements.txt
 scp -r 整合網頁/pineapple_unified_web pi@<RPi-IP>:/home/pi/pineapple_unified_web
 scp 整合網頁/start_pineapple_system.sh pi@<RPi-IP>:/home/pi/
 scp 整合網頁/stop_pineapple_system.sh  pi@<RPi-IP>:/home/pi/
-
-# 在 RPi 上
 cd ~/pineapple_unified_web
 python3 -m venv .venv
 source .venv/bin/activate
 pip install flask
-
 chmod +x ~/start_pineapple_system.sh
 chmod +x ~/stop_pineapple_system.sh
 ```
@@ -223,62 +225,23 @@ chmod +x ~/stop_pineapple_system.sh
 
 ### 7.1 Demo 模式（無硬體，PC 直接執行）
 
-不需 Arduino 或 RPi，用 `demo_data/` 內的預錄資料測試：
-
 ```bash
 cd pineapple_final
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 python app_local_demo_early_corrected_v4.py
-# 瀏覽器開啟 http://localhost:5000
 ```
-
-或用指令列測試特定成熟度：
-
-```bash
-# Demo 空氣校正
-python calibrate_air_30s.py --demo --demo-case pineapple_03_20260214
-
-# Demo 推論（可換 未熟 / 初熟 / 成熟 / 過熟）
-python inference_30s.py --demo --demo-case pineapple_03_20260214 --demo-stage 成熟
-```
-
-**Demo 資料對照（`demo_data/` 中已提供）：**
-
-| 鳳梨編號 | 日期 | 可用熟度 |
-|----------|------|----------|
-| pineapple_03 | 20260203 | 未熟 |
-| pineapple_03 | 20260206–08 | 初熟 |
-| pineapple_03 | 20260211 | 成熟 |
-| pineapple_03 | 20260214 | 過熟 |
-| pineapple_10 | 20260208 | 未熟 |
-| pineapple_10 | 20260210 | 初熟 |
-| pineapple_10 | 20260214 | 成熟 |
-| pineapple_11 | 20260208 | 未熟 |
-| pineapple_11 | 20260211 | 初熟 |
-
----
 
 ### 7.2 Raspberry Pi 即時偵測（需完整硬體）
 
 ```bash
-# 在 RPi 上
 cd ~/pineapple_final
 source .venv/bin/activate
-
-# Step 1：確認 Arduino 有被偵測到
 ls /dev/ttyACM* /dev/ttyUSB*
-# 應看到 /dev/ttyACM0
-
-# Step 2：空氣基線校正（容器內不放鳳梨）
 python calibrate_air_30s.py
-
-# Step 3：放入鳳梨，選擇檢測模式
-python inference_30s.py                    # 快速：直接 30 秒
-python inference_30s.py --warmup-sec 60    # 標準：預熱 60 秒 + 推論 30 秒
-python inference_30s.py --warmup-sec 180   # 完整：預熱 180 秒 + 推論 30 秒
+python inference_30s.py
+python inference_30s.py --warmup-sec 60
+python inference_30s.py --warmup-sec 180
 ```
-
----
 
 ### 7.3 網頁操作介面（Raspberry Pi Flask）
 
@@ -288,17 +251,7 @@ source .venv/bin/activate
 python app_local.py
 ```
 
-確認 `app_local.py` 頂部的設定：
-
-```python
-RPI_USER = "pi"                           # RPi 帳號
-RPI_IP   = "192.168.0.152"               # RPi IP（依實際修改）
-RPI_PROJECT_DIR = "/home/pi/pineapple_final"
-```
-
-瀏覽器開啟 `http://<RPi-IP>:5000`，頁面提供：快速檢測 / 標準檢測 / 完整檢測 / Demo 模式。
-
----
+瀏覽器開啟 `http://<RPi-IP>:5000`。
 
 ### 7.4 影像品種辨識伺服器（Windows PC）
 
@@ -306,103 +259,23 @@ RPI_PROJECT_DIR = "/home/pi/pineapple_final"
 cd pineapple_detection
 .venv\Scripts\activate
 python server_variety.py
-# 確認終端機顯示 Running on http://0.0.0.0:5001
 ```
 
-> 必須使用 `host="0.0.0.0"`，才能讓 RPi 連到此服務。
-
-測試單張圖片：
+### 7.5 Docker 備援：學校 VM 影像辨識
 
 ```bash
-# 使用 pipeline 腳本
-python src/pipeline.py --image test_7.jpg --save
-
-# 或用 curl 呼叫 API
-curl -X POST http://localhost:5001/predict -F "file=@test_7.jpg"
-```
-
----
-
-### 7.5 Docker 備援：學校 VM 影像辨識（筆電無法執行時使用）
-
-> **使用時機：** 比賽現場筆電環境不穩、GPU / CPU 無法執行模型時，切換到此備援路徑，App 或網頁改打學校 VM 的 API。
-
-**部署步驟（只需做一次，已部署可跳過）：**
-
-```bash
-# 從 PC 上傳整個 pineapple_detection 資料夾到學校 VM
-scp -r pineapple_detection csie@192.168.150.105:/home/csie/
-
-# SSH 進 VM
 ssh csie@192.168.150.105
 cd ~/pineapple_detection
-
-# 建立 Docker image 並啟動
 docker compose build
-docker compose up -d          # -d 背景執行
-```
-
-**確認 Container 狀態：**
-
-```bash
+docker compose up -d
 docker ps
-# 應看到：
-# pineapple-detection   Up X days   0.0.0.0:5001->5001/tcp
 ```
-
-**確認 API 是否正常：**
-
-```bash
-# 在 VM 本機測試
-curl http://127.0.0.1:5001
-# 應看到：{"message":"Three-stage pineapple server is running.","status":"ok",...}
-
-# 測試推論（換成你的測試圖片）
-curl -X POST -F "image=@dataset/valid/images/Pineapple08203_jpg.rf.xxx.jpg" \
-  http://127.0.0.1:5001/predict
-```
-
-**從外部網路呼叫備援 API：**
-
-```bash
-curl -X POST http://192.168.150.105:5001/predict -F "image=@your_pineapple.jpg"
-```
-
-切換備援路徑：把 Gateway 或整合網頁中原本指向 Windows PC (`192.168.0.176:5001`) 的 URL 改為 `192.168.150.105:5001`。
-
-**Docker logs 查看：**
-
-```bash
-docker logs pineapple-detection
-# 正常啟動應包含：
-# [OK] YOLO detector loaded: weights/yolov8n_pineapple_best.pt
-# [OK] EfficientNet-B0 classifier loaded: weights/b0_focal_best.pth
-# Running on http://0.0.0.0:5001
-```
-
----
 
 ### 7.6 整合 Web 介面一鍵啟動（Raspberry Pi）
 
-先在 Windows PC 啟動影像辨識伺服器（7.4），再在 RPi 執行：
-
 ```bash
 ~/start_pineapple_system.sh
-```
-
-腳本依序啟動三個服務並將 log 寫入 `~/pineapple_logs/`：
-
-```
-http://<RPi-IP>:5000   ← 電子鼻成熟度頁
-http://<RPi-IP>:5002   ← 照片品種辨識頁
-http://<RPi-IP>:8000   ← 整合入口網站
-```
-
-瀏覽器開啟 `http://<RPi-IP>:8000` 即可使用完整系統。
-
-停止所有服務：
-
-```bash
+# http://<RPi-IP>:8000
 ~/stop_pineapple_system.sh
 ```
 
@@ -416,65 +289,50 @@ http://<RPi-IP>:8000   ← 整合入口網站
 
 ### 8.1 農民端 App（Farmer App）
 
-**程式碼路徑：** `../3rd Grade - Semester 2 (三下-期中)/App/Farmer_pineapple-main/expo/`
+**程式碼路徑：** `app/Farmer_pineapple-main/`  
+**參考 Repo：** [`Tinazhen/Farmer_pineapple`](https://github.com/Tinazhen/Farmer_pineapple)
 
 **定位：** 供農民在田間或倉庫操作，管理採收批次、逐批掃描鳳梨、追蹤今日異常數，並匯出報告。
 
-#### 畫面與功能
+#### 架構
 
-| 頁面 | 功能說明 |
-|------|----------|
-| **首頁 Home** | 今日掃描總數、今日異常數、進行中批次數；「開始掃描」／「新建批次」快速按鈕；最近 4 筆批次列表 |
-| **批次管理 Batches** | 列出所有批次，狀態分草稿（draft）/ 進行中（testing）/ 完成（done） |
-| **建立批次** | 填寫批次名稱、田區、品種、採收量、用途（外銷 / 內銷 / 加工）、採樣目標數 |
-| **批次掃描 Scan** | 呼叫 RPi API，取得每顆成熟度、糖度 TSS Brix、黑心病風險、異常旗標；逐筆加入批次 |
-| **批次摘要 Summary** | 成熟度分佈圓餅圖（RipenessPieChart）、批次統計；匯出報告 |
-| **報告 Reports** | 所有歷史批次報告列表 |
-| **設定 Settings** | RPi 後端 URL、語言（zh / en）、糖度閾值（外銷 Brix、內銷 Brix）、採樣比例 |
-
-#### API 串接（呼叫 RPi Port 5000）
-
-```
-GET  /ping        → 確認後端是否上線
-POST /scan/start  → 觸發 30 秒掃描，回傳推論結果
+```text
+Farmer_pineapple-main/
+├── app/                 # Expo Router 頁面
+├── components/          # 共用 UI 元件與圖表
+├── stores/              # 批次與掃描狀態管理
+├── services/            # API 呼叫與後端連線
+├── assets/              # 圖片、圖示等靜態資源
+├── package.json
+└── README.md
 ```
 
-**`/scan/start` 回傳格式：**
+#### 頁面架構
 
-```json
-{
-  "ripeness": "ripe",
-  "tss_brix": 14.5,
-  "blackheart_risk": "low",
-  "anomaly_flag": "normal"
-}
+| 頁面 | 用途 |
+|------|------|
+| Home | 農民端首頁與批次入口 |
+| Batches | 批次管理 |
+| Batch Create | 建立批次 |
+| Batch Scan | 批次掃描 |
+| Batch Summary | 批次摘要 |
+| Reports | 報告列表 |
+| Settings | 後端 URL 與參數設定 |
+
+#### API 串接
+
+```http
+GET  /ping
+POST /scan/start
 ```
-
-| 欄位 | 可能值 | 說明 |
-|------|--------|------|
-| `ripeness` | `unripe` / `ripe` / `overripe` | 成熟度 |
-| `tss_brix` | 10.0 – 18.0 | 糖度（Brix） |
-| `blackheart_risk` | `low` / `med` / `high` | 黑心病風險 |
-| `anomaly_flag` | `normal` / `isolate` | 是否需隔離 |
-
-> 後端離線時，App 自動 fallback 至本機亂數模擬值，方便無 RPi 時展示流程。
 
 #### 安裝與啟動
 
 ```bash
-cd "../3rd Grade - Semester 2 (三下-期中)/App/Farmer_pineapple-main/expo"
+cd app/Farmer_pineapple-main
 bun install            # 或 npm install
 bunx expo start        # 掃 QR code 以 Expo Go 開啟
 ```
-
-首次使用請至「設定」頁面填入 Raspberry Pi IP：
-
-```
-http://172.20.10.2:5000    # 手機熱點環境（RPi 連手機熱點）
-http://192.168.0.152:5000  # 一般 Wi-Fi 環境
-```
-
-**技術棧：** Expo Router（檔案路由）、TypeScript、Zustand（狀態管理）、React Query、react-native-svg（圓餅圖）
 
 ---
 
@@ -484,13 +342,13 @@ http://192.168.0.152:5000  # 一般 Wi-Fi 環境
 
 **定位：** 供消費者使用，查詢鳳梨品種、提交掃描紀錄並瀏覽歷史記錄。
 
-#### 畫面與功能
+#### 頁面與功能
 
 | 頁面 | 功能說明 |
 |------|----------|
 | **首頁 index** | App 入口，進入各主要功能 |
-| **掃描流程 processing → result** | 偵測動畫（含音效 beep.mp3）；掃描完成後顯示成熟度結果；可提交人工回饋 |
-| **品種介紹 varieties** | 四種鳳梨品種（金鑽／本土／牛奶／西瓜）列表；點入 variety-detail 查詳情 |
+| **掃描流程 processing → result** | 偵測動畫；掃描完成後顯示成熟度結果；可提交人工回饋 |
+| **品種介紹 varieties** | 四種鳳梨品種列表；點入 variety-detail 查詳情 |
 | **知識庫 knowledge-base** | 鳳梨農業知識文章 |
 | **季節指南 seasonal-guide** | 各品種產季與採購建議 |
 | **趣味問答 trivia** | 鳳梨趣味小知識卡片 |
@@ -501,28 +359,10 @@ http://192.168.0.152:5000  # 一般 Wi-Fi 環境
 
 #### API 串接
 
-```
-POST /scan_records               → 上傳掃描紀錄（含感測器原始數值）
-POST /scan_records/{id}/feedback → 提交人工回饋（correct_label）
-GET  /scan_records/export.xlsx   → 匯出歷史紀錄 Excel
-```
-
-**上傳 payload 包含感測器原始值：**
-
-```json
-{
-  "timestamp_iso": "2026-05-31T10:00:00.000Z",
-  "fruit_id": "PA-001",
-  "MQ2_raw": 312, "MQ3_raw": 189, "MQ9_raw": 254,
-  "MQ135_raw": 401, "TGS2602_raw": 178,
-  "Temp_C": 26.3, "Humidity_pct": 68.1, "Pressure_hPa": 1013.2,
-  "ripeness_pred": "ripe",
-  "confidence": 0.82,
-  "anomaly_flag": "none",
-  "locale": "zh-TW",
-  "device_id": "xxxx-xxxx",
-  "app_version": "1.0.0"
-}
+```http
+POST /scan_records
+POST /scan_records/{id}/feedback
+GET  /scan_records/export.xlsx
 ```
 
 #### 安裝與啟動
@@ -533,10 +373,6 @@ bun install
 bunx expo start
 ```
 
-在 App 設定頁填入後端 API base URL（Gateway Port 5002 或 RPi 直接 Port 5000）。
-
-**技術棧：** Expo Router、TypeScript、Zustand、多語言 Context（zh / en）、expo-av（音效）、expo-file-system、expo-sharing（匯出）
-
 ---
 
 ## 9. 輸入 / 輸出格式 Input / Output Format
@@ -545,13 +381,13 @@ bunx expo start
 
 **Arduino Serial 輸出格式（115200 baud）：**
 
-```
+```text
 timestamp_ms,MQ2_raw,MQ3_raw,MQ9_raw,MQ135_raw,TGS2602_raw,TGS2620_raw,Temp_C,Humidity_pct,Pressure_hPa
 ```
 
 **模型輸入特徵（11 個 30 秒窗口統計量）：**
 
-```
+```text
 MQ3_std_norm, MQ3_range_norm, MQ2_MQ3_ratio, MQ3_MQ135_ratio,
 MQ9_slope, TGS2602_min_norm, MQ2_auc_norm, MQ2_mean_norm,
 MQ9_min_norm, TGS2602_std_norm, MQ9_delta_mean
@@ -585,13 +421,13 @@ MQ9_min_norm, TGS2602_std_norm, MQ9_delta_mean
 
 ---
 
-### 8.2 影像品種辨識
+### 9.2 影像品種辨識
 
 **請求：** HTTP POST `http://<PC-IP>:5001/predict`，欄位 `file=<圖片>`
 
 **推論 Pipeline：**
 
-```
+```text
 輸入圖片
     ↓
 YOLOv8n — 偵測有無鳳梨
@@ -610,28 +446,15 @@ EfficientNet-B0 + TTA × 5
   "is_pineapple": true,
   "predicted_class": "jinzuan",
   "predicted_label_zh": "金鑽鳳梨",
-  "confidence": 0.91,
-  "all_probabilities": {
-    "jinzuan": 0.91,
-    "local": 0.04,
-    "milk": 0.03,
-    "watermelon": 0.02
-  }
+  "confidence": 0.91
 }
 ```
-
-| 類別代碼 | 中文名稱 |
-|----------|----------|
-| `jinzuan` | 金鑽鳳梨 |
-| `local` | 本土種鳳梨 |
-| `milk` | 牛奶鳳梨 |
-| `watermelon` | 西瓜鳳梨 |
 
 ---
 
 ## 10. 模型資訊 Model Information
 
-### 9.1 電子鼻成熟度模型
+### 10.1 電子鼻成熟度模型
 
 | 項目 | 說明 |
 |------|------|
@@ -641,12 +464,12 @@ EfficientNet-B0 + TTA × 5
 | 訓練資料 | `enose_model_training/orkspace/data/` |
 | 主訓練 Notebook | `enose_model_training/orkspace/labeling_perfect_final.ipynb` |
 
-### 9.2 影像品種辨識模型
+### 10.2 影像品種辨識模型
 
 | 項目 | 說明 |
 |------|------|
-| 偵測模型 | YOLOv8n，mAP@50 ≈ 86%，訓練資料 4100 張（Roboflow） |
-| 分類模型 | EfficientNet-B0（Focal Loss），Acc 88.9%（TTA 92.6%），270 張自行收集 |
+| 偵測模型 | YOLOv8n |
+| 分類模型 | EfficientNet-B0 |
 | 偵測權重 | `pineapple_detection/weights/yolov8n_pineapple_best.pt` |
 | 分類權重 | `pineapple_detection/weights/b0_focal_best.pth` |
 | 訓練腳本 | `pineapple_detection/src/train_yolo.py` |
@@ -655,7 +478,7 @@ EfficientNet-B0 + TTA × 5
 
 ## 11. 專案結構 Project Structure
 
-```
+```text
 Semester 2 Final Exam (三下-期末)/
 │
 ├── pineapple_final/                              # ★ 電子鼻推論主系統
@@ -677,15 +500,9 @@ Semester 2 Final Exam (三下-期末)/
 │   ├── models.py                                 # EfficientNet-B0 定義
 │   ├── class_names.json                          # 品種類別 (4 種)
 │   ├── weights/
-│   │   ├── yolov8n_pineapple_best.pt             # YOLOv8 偵測權重
-│   │   └── b0_focal_best.pth                     # EfficientNet 分類權重
 │   ├── src/
-│   │   ├── pipeline.py                           # 兩階段推論 pipeline
-│   │   ├── predict.py                            # 獨立單張圖片推論
-│   │   ├── train_yolo.py                         # YOLOv8 訓練腳本
-│   │   └── evaluate_yolo.py                      # 模型評估
-│   ├── dataset/                                  # YOLO 格式訓練資料集
-│   ├── outputs/                                  # 訓練輸出與評估結果
+│   ├── dataset/
+│   ├── outputs/
 │   └── requirements.txt
 │
 ├── pineapple_app_gateway/                        # ★ App / Web API Gateway
@@ -693,24 +510,33 @@ Semester 2 Final Exam (三下-期末)/
 │   ├── app_gateway.py                            # 舊版 Gateway
 │   ├── requirements_gateway.txt
 │   ├── start_server.sh
-│   └── test_2.jpg                                # 測試用圖片
+│   └── test_2.jpg
 │
 ├── 整合網頁/                                      # ★ 整合 Web 介面
 │   ├── pineapple_unified_web/
 │   │   ├── app.py                                # 整合入口 Flask (Port 8000)
-│   │   ├── templates/index.html                  # 主頁（含開場動畫、分頁）
+│   │   ├── templates/index.html
 │   │   └── static/style.css
-│   ├── start_pineapple_system.sh                 # 一鍵啟動三個服務
-│   └── stop_pineapple_system.sh                  # 一鍵停止三個服務
+│   ├── start_pineapple_system.sh
+│   └── stop_pineapple_system.sh
 │
 ├── app/
-│   └── Consumer_pineapple-ripeness-main/         # 消費端 App (Expo/React Native)
+│   ├── Consumer_pineapple-ripeness-main/         # 消費端 App (Expo/React Native)
+│   │   └── expo/
+│   └── Farmer_pineapple-main/                    # 農民端 App (Expo/React Native)
+│       ├── app/                                  # 頁面路由
+│       ├── components/                           # 共用元件與圖表
+│       ├── stores/                               # 狀態管理
+│       ├── services/                             # API 連線
+│       ├── assets/                               # 靜態資源
+│       ├── package.json
+│       └── README.md
 │
 ├── enose_model_training/                         # 模型訓練工作區
 │   └── orkspace/
-│       ├── labeling_perfect_final.ipynb          # 主訓練 Notebook
-│       ├── data/                                 # 原始感測器資料
-│       ├── deploy_rpi_et_30s_noday/              # 生產部署模型包（主要版本）
+│       ├── labeling_perfect_final.ipynb
+│       ├── data/
+│       ├── deploy_rpi_et_30s_noday/
 │       ├── models/ reports/ catboost_info/
 │       ├── feature_columns.json
 │       └── cutpoints.json
@@ -729,7 +555,7 @@ Semester 2 Final Exam (三下-期末)/
 
 ## 13. 正式展示流程 Demo Presentation Flow
 
-```
+```text
 展示前準備
 1. 確認 RPi 與 Windows PC 在同一 Wi-Fi
 2. 查 RPi IP：ssh pi@<RPi-IP>，執行 hostname -I
@@ -737,33 +563,23 @@ Semester 2 Final Exam (三下-期末)/
 Windows PC（先啟動，主要路徑）
 3. cd pineapple_detection && .venv\Scripts\activate
 4. python server_variety.py
-   → 確認看到 Running on http://0.0.0.0:5001
-   ※ 若筆電無法執行，改用 Docker 備援路徑（見下）
 
 Docker 備援路徑（筆電失敗時）
 3b. ssh csie@192.168.150.105
-    docker ps   # 確認 pineapple-detection Up
-    # 若 container 未啟動：
+    docker ps
     cd ~/pineapple_detection && docker compose up -d
-    # 把 Gateway / 整合網頁的 image API URL 改成 192.168.150.105:5001
 
 Raspberry Pi（接著啟動）
 5. ~/start_pineapple_system.sh
-   → 等候約 10 秒，確認三個 port 啟動：
-   ss -tulnp | grep python  # 應看到 5000, 5002, 8000
 
 展示
 6. 瀏覽器開啟 http://<RPi-IP>:8000
 7. 分頁一：電子鼻成熟度辨識
-   - 先展示 Demo 模式（選不同成熟度 xlsx）
-   - 再接 Arduino，執行空氣校正 → 放鳳梨 → 標準檢測
 8. 分頁二：照片品種辨識
-   - 上傳鳳梨照片，等待辨識結果
 
 展示結束
 9. RPi：~/stop_pineapple_system.sh
 10. Windows：Ctrl + C 停止 server_variety.py
-    （若使用 Docker 備援：docker stop pineapple-detection 或保持執行）
 ```
 
 ---
@@ -772,124 +588,35 @@ Raspberry Pi（接著啟動）
 
 **Q: 找不到 Arduino（`/dev/ttyACM*` 不存在）**
 
-重新插 USB，並確認 Arduino 已上傳 `use_this.ino`。確認當前使用者有串口權限：
-
 ```bash
 sudo usermod -a -G dialout $USER
 # 重新登入後生效
 ```
 
----
-
 **Q: `air_base.json` 找不到或推論觸發空氣防呆**
-
-執行空氣校正，確認容器內沒有鳳梨：
 
 ```bash
 python calibrate_air_30s.py
 ```
 
----
-
 **Q: 整合網頁開啟，但分頁顯示「拒絕連線」**
-
-確認三個服務都在跑：
 
 ```bash
 ss -tulnp | grep python
 # 應看到 5000, 5002, 8000
 ```
 
-確認 `pineapple_unified_web/app.py` 內的 IP 是 RPi 的 IP，不是 `localhost`。
-
----
-
 **Q: 照片辨識無法回傳結果**
 
-1. 確認 Windows 端 `server_variety.py` 有啟動且使用 `host="0.0.0.0"`
-2. 確認 RPi 與 Windows 在同一網路：`ping <Windows-IP>`
-3. 若 Windows IP 改變，更新 Gateway 與整合網頁的 IP 設定
-
----
-
-**Q: 影像辨識安裝 torch 失敗（無 GPU）**
-
-```bash
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-```
-
----
+確認 Windows 端 `server_variety.py` 有啟動且使用 `host="0.0.0.0"`，並確認 RPi 與 Windows 在同一網路。
 
 **Q: 筆電無法執行影像辨識，如何切換 Docker 備援？**
 
-1. 確認學校 VM 的 Docker container 正在執行：
-   ```bash
-   ssh csie@192.168.150.105
-   docker ps   # 應看到 pineapple-detection Up
-   ```
-2. 若未執行，啟動它：
-   ```bash
-   cd ~/pineapple_detection && docker compose up -d
-   ```
-3. 修改 `pineapple_app_gateway/app_gateway_v2.py` 或整合網頁 `app.py` 中指向影像辨識的 URL，從
-   `http://192.168.0.176:5001` 改為 `http://192.168.150.105:5001`，重啟服務。
-
----
-
-**Q: Docker container 啟動後 API 無回應**
-
-查看 logs 確認模型是否正確載入：
-
-```bash
-docker logs pineapple-detection
-# 確認有 [OK] YOLO detector loaded 和 [OK] EfficientNet-B0 classifier loaded
-```
-
-若 weights 路徑錯誤，確認 `pineapple_detection/weights/` 內有：
-- `yolov8n_pineapple_best.pt`
-- `b0_focal_best.pth`
-
----
-
-**Q: `Address already in use`**
-
-```bash
-~/stop_pineapple_system.sh
-~/start_pineapple_system.sh
-```
-
----
+將 `pineapple_app_gateway/app_gateway_v2.py` 或整合網頁 `app.py` 的影像辨識 URL 改為 `http://192.168.150.105:5001`，重啟服務。
 
 **Q: 農民端 App 掃描後回傳 mock 資料而非真實推論**
 
-App 內建 fallback 邏輯：後端離線時自動回傳亂數模擬值。請至「設定」頁面確認後端 URL 填入正確的 RPi IP（如 `http://172.20.10.2:5000`），並確認 RPi 上 `app_local.py` 正在執行。
-
-測試連線：
-
-```bash
-# 在手機同一網路下，可先用瀏覽器確認 RPi 有回應
-http://172.20.10.2:5000/ping
-```
-
----
-
-**Q: 農民端 App 首次開啟停在 Login 畫面**
-
-目前 Login 為展示用介面，無需真實帳密，直接點選登入按鈕即可進入主畫面。
-
----
-
-**Q: 消費端 App 掃描紀錄上傳失敗，累積在 pending-uploads**
-
-1. 確認 App 設定頁的 API base URL 已填入 Gateway（`http://<RPi-IP>:5002`）或 RPi 直接 URL
-2. 確認手機與 RPi 在同一 Wi-Fi 下
-3. 至「待上傳」頁面，網路恢復後手動觸發批次重傳
-
----
-
-**Q: 農民端 App 匯出報告按鈕無反應**
-
-確認批次狀態已標記為「完成（done）」，且有至少一筆掃描紀錄。若後端無 `/export` 路由，目前匯出功能為本機 CSV 存檔，需確認 `expo-file-system` 權限已開啟。
+請至「設定」頁面確認後端 URL 填入正確的 RPi IP，並確認 RPi 上 `app_local.py` 正在執行。
 
 ---
 
@@ -897,12 +624,10 @@ http://172.20.10.2:5000/ping
 
 | 項目 | 狀態 | 說明 |
 |------|------|------|
-| 影像辨識需外部機器 | 已有備援 | 主要跑 Windows PC；**學校 VM Docker 作為備援**，筆電故障仍可服務 |
+| 影像辨識需外部機器 | 已有備援 | 主要跑 Windows PC；學校 VM Docker 作為備援 |
 | 整合網頁用 iframe | 現有限制 | 內外頁風格略有差異 |
 | IP 硬編碼 | 現有限制 | RPi 或 PC IP 改變時需手動更新設定 |
 | Docker 備援需手動切換 | 現有限制 | 目前需手動修改 Gateway URL；未來可加入自動 fallback 邏輯 |
-
-未來可改進方向：Gateway 加入自動偵測 PC 失敗並 fallback 到 Docker VM；將影像模型輕量化部署至 RPi；以真正 API 整合取代 iframe 架構。
 
 ---
 
