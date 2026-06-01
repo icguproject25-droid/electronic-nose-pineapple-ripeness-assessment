@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Farmer Pineapple Ripeness",
+    "slug": "farmer-pineapple-ripeness",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "farmer-pineapple",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.pinenose.farmer"
+    },
+    "android": {
+      "package": "app.pinenose.farmer"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
