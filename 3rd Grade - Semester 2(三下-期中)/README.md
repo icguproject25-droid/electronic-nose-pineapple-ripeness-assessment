@@ -135,14 +135,16 @@ deploy_meta.json
 ```bash
 # 農民端
 cd App/Farmer_pineapple-main/expo
-bun install        # 或 npm install
-bunx expo start
+npm install --legacy-peer-deps   # 需加 --legacy-peer-deps 避免套件衝突
+npx expo start
 
 # 消費端
 cd App/Consumer_pineapple-ripeness-main/expo
-bun install
-bunx expo start
+npm install --legacy-peer-deps
+npx expo start
 ```
+
+手機掃 QR code 用 **Expo Go** 開啟；或在終端機按 `w` 開啟瀏覽器模式。
 
 ---
 
@@ -163,7 +165,18 @@ python3 calibrate_air_30s.py
 python3 calibrate_air_30s.py --warmup-sec 180
 ```
 
-校正完成後產生 `air_base.json`（空氣基線數值）。
+校正完成後產生 `air_base.json`（空氣基線數值），格式如下：
+
+```json
+{
+  "MQ2":     { "mean": 450.2, "std": 12.3 },
+  "MQ3":     { "mean": 380.5, "std": 15.1 },
+  "MQ9":     { "mean": 312.0, "std": 10.2 },
+  "MQ135":   { "mean": 520.1, "std": 18.4 },
+  "TGS2602": { "mean": 280.3, "std":  9.7 },
+  "TGS2620": { "mean": 410.6, "std": 13.5 }
+}
+```
 
 **步驟二：鳳梨成熟度推論**
 
@@ -243,7 +256,23 @@ CatBoost（Teacher）──── 知識蒸餾 ────▶ ExtraTrees（Stud
                                  MI 篩選 11 項核心特徵 → 部署推論
 ```
 
-### 9.2 訓練資料
+### 9.2 11 項部署特徵
+
+| # | 特徵名稱 | 計算方式 |
+|---|----------|----------|
+| 1 | `MQ3_std_norm` | MQ3 標準差歸一化 |
+| 2 | `MQ3_range_norm` | MQ3 範圍歸一化 |
+| 3 | `MQ2_MQ3_ratio` | MQ2 / MQ3 濃度比值 |
+| 4 | `MQ3_MQ135_ratio` | MQ3 / MQ135 濃度比值 |
+| 5 | `MQ9_slope` | MQ9 濃度變化斜率 |
+| 6 | `TGS2602_min_norm` | TGS2602 最小值歸一化（模型權重最高） |
+| 7 | `MQ2_auc_norm` | MQ2 曲線下面積歸一化 |
+| 8 | `MQ2_mean_norm` | MQ2 均值歸一化 |
+| 9 | `MQ9_min_norm` | MQ9 最小值歸一化 |
+| 10 | `TGS2602_std_norm` | TGS2602 標準差歸一化 |
+| 11 | `MQ9_delta_mean` | MQ9 均值變化量 |
+
+### 9.3 訓練資料
 
 | 項目 | 數值 |
 |------|------|
@@ -253,7 +282,7 @@ CatBoost（Teacher）──── 知識蒸餾 ────▶ ExtraTrees（Stud
 | Stage 2（完熟） | 29 筆 |
 | Stage 3（過熟） | 21 筆 → 69 筆（Pseudo Labeling 補強） |
 
-### 9.3 模型效能
+### 9.4 模型效能
 
 | 指標 | 數值 |
 |------|------|
@@ -262,7 +291,7 @@ CatBoost（Teacher）──── 知識蒸餾 ────▶ ExtraTrees（Stud
 | 含後處理樣本準確率 | **80.49%** |
 | 部署模型大小 | 6.2 MB |
 
-### 9.4 後處理邏輯
+### 9.5 後處理邏輯
 
 ```
 Guard Baseline（空氣防呆）
@@ -272,6 +301,24 @@ Guard Baseline（空氣防呆）
 Override 邏輯（過熟覆寫）
   └─ 若模型預測 Stage 2 且 TGS2602 / MQ3 特徵超過閾值
      → 覆寫為 Stage 3（過熟）
+```
+
+### 9.6 重現模型訓練
+
+主訓練 Notebook 位於：
+
+```
+enose_model_training/orkspace/labeling_perfect_final.ipynb
+```
+
+Notebook 包含完整流程：原始 Excel 特徵重建 → 標注載入與修復 → 特徵工程 → 模型訓練與評估 → 部署包匯出。
+
+訓練完成後，部署所需的三個檔案會輸出至 `deploy_rpi_et_30s_noday/`：
+
+```
+deploy_student.pkl       ← 推論模型
+feature_columns.json     ← 11 項特徵欄位定義
+deploy_meta.json         ← 模型中繼資料（閾值、stage 對應）
 ```
 
 ---
@@ -284,12 +331,14 @@ Override 邏輯（過熟覆寫）
 
 | 頁面 | 功能 |
 |------|------|
+| 登入 Login | 展示用登入畫面（直接點擊即可進入） |
 | 首頁 Home | 今日掃描數、今日異常數、進行中批次數；快速入口 |
 | 批次管理 Batches | 列出所有批次（draft / testing / done） |
-| 建立批次 | 填寫批次名稱、田區、品種、用途（外銷 / 內銷 / 加工） |
-| 批次掃描 Scan | 呼叫 RPi API，取得成熟度、糖度 Brix、黑心病風險、異常旗標 |
-| 批次摘要 Summary | 成熟度圓餅圖、批次統計、匯出報告 |
-| 設定 Settings | RPi 後端 URL、語言（zh / en）、糖度閾值 |
+| 建立批次 Create Batch | 填寫批次名稱、田區、品種、採收量、用途（外銷 / 內銷 / 加工）、採樣目標數 |
+| 批次掃描 Scan | 呼叫 RPi API，取得成熟度（unripe / ripe / overripe）、糖度 Brix、黑心病風險（low / med / high）、異常旗標（normal / isolate） |
+| 批次摘要 Summary | 成熟度圓餅圖（RipenessPieChart）、批次統計、匯出報告 |
+| 報告 Reports | 歷史批次報告列表 |
+| 設定 Settings | RPi 後端 URL、語言（zh / en）、糖度閾值（外銷 Brix、內銷 Brix）、採樣比例 |
 
 **API 端點（呼叫 RPi Port 5000）：**
 
@@ -310,10 +359,15 @@ POST /scan/start  → 觸發 30 秒掃描
 ```
 
 **設定後端 URL：**
+
 ```
-http://172.20.10.2:5000    # 手機熱點環境
+http://172.20.10.2:5000    # 手機熱點環境（RPi 連手機熱點）
 http://192.168.0.152:5000  # 一般 Wi-Fi 環境
 ```
+
+**技術棧：** React Native (Expo Router)、TypeScript、Zustand、TanStack React Query、Lucide React Native、react-native-svg（圓餅圖）
+
+**UI 設計原則：** 大按鈕 + 高對比配色，適應戶外強光與手套操作；中英雙語一鍵切換。
 
 ### 10.2 消費端 App
 
@@ -321,13 +375,21 @@ http://192.168.0.152:5000  # 一般 Wi-Fi 環境
 
 | 頁面 | 功能 |
 |------|------|
-| 掃描流程 processing → result | 偵測動畫、音效；顯示成熟度結果；可提交回饋 |
-| 品種介紹 varieties | 四種鳳梨品種介紹（金鑽／本土／牛奶／西瓜） |
-| 知識庫 knowledge-base | 鳳梨農業知識 |
+| 首頁 index | App 入口，進入各主要功能 |
+| 掃描流程 processing → result | 偵測動畫（含音效 beep.mp3）引導 30 秒感測；結果頁以顏色碼直觀顯示（🟢未熟／🟡初熟／🟠完熟／🔴過熟）、信心值與食用建議；可提交人工回饋 |
+| 品種介紹 varieties | 四種鳳梨品種（金鑽／本土／牛奶／西瓜）列表；點入 variety-detail 查詳情 |
+| 知識庫 knowledge-base | 鳳梨農業知識文章 |
 | 季節指南 seasonal-guide | 各品種產季與採購建議 |
 | 趣味問答 trivia | 鳳梨趣味知識卡片 |
-| 歷史記錄 history | 過去掃描紀錄；可補提交人工回饋 |
+| 糖度計算 calculator | 甜度換算工具 |
+| 歷史記錄 history / history-detail | 過去掃描紀錄列表；單筆詳情頁可補提交人工回饋 |
 | 待上傳 pending-uploads | 離線暫存紀錄，連線後批次同步 |
+| 操作說明 instruction | App 使用教學 |
+| 選單 menu | 主要功能導覽選單 |
+
+**技術棧：** React Native (Expo Router)、TypeScript、Zustand、TanStack React Query、Lucide React Native、expo-av（音效）、expo-file-system、expo-sharing（匯出）
+
+**UI 設計原則：** 顏色碼（🟢未熟／🟡初熟／🟠完熟／🔴過熟）降低認知負擔；中英雙語 + 語音提示。
 
 ---
 
