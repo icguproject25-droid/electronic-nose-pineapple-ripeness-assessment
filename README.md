@@ -5,8 +5,7 @@
 
 ### [🎬 期中 Demo 影片](https://drive.google.com/file/d/1zQTGWSUGKHxx7ukhSpP41EWQJNEOJPet/view?usp=drivesdk)
 ### [🎬 期末 Demo 影片](https://drive.google.com/file/d/1Z_MbwVsv4nYf6GSiNdPcTrRvedTm5LH4/view?usp=drivesdk)
-### ［🎬 20260601 報告 Demo 影片］
-（https://drive.google.com/file/d/1jPS8nS9LenRPj_xzRBxOc3c53piBs48R/view?usp=drivesdk）
+### ［🎬 20260601 報告 Demo 影片］（https://drive.google.com/file/d/1jPS8nS9LenRPj_xzRBxOc3c53piBs48R/view?usp=drivesdk）
 
 *電子鼻 × 邊緣運算 × 機器學習 × 影像辨識 × 行動 App*
 
