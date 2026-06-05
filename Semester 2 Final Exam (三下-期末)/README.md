@@ -6,6 +6,7 @@
 *電子鼻成熟度辨識 × 影像品種辨識 × 整合 Web 介面 × 行動 App*
 
 ### [🎬 期末 Demo 影片](https://drive.google.com/file/d/1Z_MbwVsv4nYf6GSiNdPcTrRvedTm5LH4/view?usp=drivesdk)
+### 🎬 [20260601 報告 Demo 影片](https://drive.google.com/file/d/1jPS8nS9LenRPj_xzRBxOc3c53piBs48R/view?usp=drivesdk)
 
 ![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.1+-000000?style=flat-square&logo=flask&logoColor=white)
