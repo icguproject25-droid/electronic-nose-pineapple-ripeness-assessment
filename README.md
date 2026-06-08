@@ -397,6 +397,7 @@ electronic-nose-pineapple-ripeness-assessment/
 │   ├── enose_model_training/                    # 模型訓練工作區
 │   └── pineapple_deployment_system/             # Arduino 韌體
 │
+└── UML                                          #物件導向設計期末流程圖
 └── README.md
 ```
 
