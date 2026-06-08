@@ -6,8 +6,8 @@
 
 | 章節 | 內容 | 資料夾 |
 |---|---|---|
-| 第四章 | 詞彙表 | 04-glossary |
-| 第五章 | 使用案例圖 | 05-use-case-diagrams |
+| 第四章 | 詞彙表 | [04-glossary](./04-glossary/) |
+| 第五章 | 使用案例圖 | [05-use-case-diagrams](./05-use-case-diagrams/) |
 | 第六章 | 使用案例描述與情節 | [06-use-case-scenarios](./06-use-case-scenarios/) |
 | 第七章 | 活動圖 | [07-activity-diagrams](./07-activity-diagrams/) |
 | 第八章 | 類別圖 | [08-class-diagram](./08-class-diagram/)|
