@@ -3,7 +3,7 @@
 本資料夾放置「水果（鳳梨）電子鼻非破壞性熟度檢測系統」之 UML 與使用案例相關文件。
 ## Project Link
 * GitHub Repository / UML Documents:
-  [electronic-nose-pineapple-ripeness-assessment](https://github.com/icguproject25-droid/electronic-nose-pineapple-ripeness-assessment/tree/main/UML)
+[  [electronic-nose-pineapple-ripeness-assessment](https://github.com/icguproject25-droid/electronic-nose-pineapple-ripeness-assessment/tree/main/UML)](https://github.com/icguproject25-droid/electronic-nose-pineapple-ripeness-assessment/tree/main/UML)
 
 ## 文件結構
 
