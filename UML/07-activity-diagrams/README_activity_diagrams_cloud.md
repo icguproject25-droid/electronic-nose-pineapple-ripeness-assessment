@@ -7,7 +7,7 @@
 
 > 本 README.md 為雲端繳交版，為避免雲端平台無法正確顯示 Markdown 圖片，因此本檔案不直接嵌入圖片路徑，而是以文字列出各 UML 活動圖名稱。
 > 若需要對照實際 UML 圖片，請開啟下方 GitHub 連結查看完整圖檔：
-> https://github.com/icguproject25-droid/electronic-nose-pineapple-ripeness-assessment/tree/main/UML
+>[ https://github.com/icguproject25-droid/electronic-nose-pineapple-ripeness-assessment/tree/main/UML](https://github.com/icguproject25-droid/electronic-nose-pineapple-ripeness-assessment/tree/main/UML/07-activity-diagrams)
 
 ---
 
