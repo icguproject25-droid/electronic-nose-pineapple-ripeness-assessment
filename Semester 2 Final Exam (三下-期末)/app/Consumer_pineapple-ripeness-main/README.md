@@ -206,6 +206,20 @@ expo/
 
 ---
 
+## ☁️ Docker 雲端歷史同步
+
+除本機歷史紀錄外，系統新增 Docker History Backend 同步功能。
+
+每次完成成熟度辨識後，檢測結果將：
+
+* 儲存至 Local Storage
+* 同步上傳至 Docker History Server
+* 寫入 SQLite Database
+
+即使 Docker Server 暫時無法連線，也不影響 APP 正常使用，所有同步流程皆採用例外處理機制，不影響成熟度辨識流程。
+
+---
+
 ## 🌐 多國語系支援
 
 透過 Language Context 提供：
@@ -220,24 +234,22 @@ expo/
 # 系統架構
 
 ```text
-使用者 APP
-      │
-      │ HTTP API
-      ▼
- Raspberry Pi Gateway
-      │
- ┌────┴────┐
- ▼         ▼
 
-成熟度模型   品種辨識模型
+                 使用者 APP
+                      │
+                      │  HTTP API
+          ┌───────────┴───────────┐
+          ▼                       ▼
+ Raspberry Pi Gateway      Docker History API
+          │                       │
+   ┌──────┴──────┐                │
+   ▼             ▼                ▼
+成熟度模型     品種模型      SQLite Database
 (MQ感測器)  (EfficientNet-B0)
-
- ▼         ▼
-
-成熟度結果   品種結果
-
-      ▼
- APP 顯示結果
+   │             │
+   └──────┬──────┘
+          ▼
+      APP 顯示結果
 ```
 
 ---
@@ -334,6 +346,47 @@ EfficientNet-B0
 * 牛奶鳳梨
 * 西瓜鳳梨
 
+---
+
+# Docker 歷史紀錄同步
+
+## 功能介紹
+
+為提升歷史資料保存能力，本系統新增 Docker History Backend，同步保存消費端成熟度辨識結果。
+
+每次完成成熟度辨識後，系統會：
+
+1. 建立本地 ScanRecord
+2. 儲存至 Local Storage
+3. 呼叫 Docker History API
+4. 將資料同步寫入 SQLite Database
+
+若 Docker Server 暫時無法連線，系統仍會正常完成成熟度辨識與本機儲存，不影響使用者操作。
+
+---
+
+## Docker History Backend
+
+| 項目 | 說明 |
+|------|------|
+| Server | VM Docker |
+| API | POST /history/consumer |
+| Database | SQLite |
+| 保留資料 | 最近30天 |
+
+---
+
+## 傳送資料格式
+
+```json
+{
+  "variety": "jinzuan",
+  "maturity": "ripe",
+  "confidence": 0.91,
+  "image_url": "",
+  "note": ""
+}
+```
 ---
 
 # 系統需求
