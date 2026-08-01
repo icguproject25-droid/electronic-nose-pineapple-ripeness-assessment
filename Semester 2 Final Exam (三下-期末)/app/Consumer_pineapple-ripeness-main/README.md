@@ -278,9 +278,10 @@ expo/
 
 ---
 
-## 本地儲存
+## 本地/外地儲存
 
 * AsyncStorage
+* Docker
 
 用於儲存：
 
@@ -348,9 +349,9 @@ EfficientNet-B0
 
 ---
 
-# Docker 歷史紀錄同步
+# 資料儲存補充
 
-## 功能介紹
+## Docker 歷史紀錄同步
 
 為提升歷史資料保存能力，本系統新增 Docker History Backend，同步保存消費端成熟度辨識結果。
 
