@@ -161,8 +161,6 @@ PineNose 除作為長庚大學資訊工程學系畢業專題外，也以完整�
 
 ![PineNose 2026 雙項全國競賽成果](./pinenose_competition_2026.jpeg)
 
-> 若此 README 放在 GitHub，而圖片位於其他資料夾，請依實際圖片位置調整上方相對路徑。
-
 ---
 
 ## 主要技術
