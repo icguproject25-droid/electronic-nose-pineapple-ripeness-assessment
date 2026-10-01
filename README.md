@@ -25,7 +25,7 @@
 </h3>
 
 <h3 align="center">
-<a href="https://drive.google.com/file/d/1Z_MbwVsv4nYf6GSiNdPcTrRvedTm5LH4/view?usp=drivesdk">🎬 期末 Demo 影片</a>
+<a href="https://drive.google.com/file/d/1Z_MbwVsv4nYf6GSiNdPcTrRvedTm5LH4/view">🎬 期末 Demo 影片</a>
 </h3>
 
 <h3 align="center">
