@@ -1,11 +1,20 @@
 <div align="center">
-
+> [!IMPORTANT]
+> **InnoServe 匿名審查說明**
+>
+> 為配合 InnoServe 匿名審查規範，本 Repository 之主要 README 與競賽審查內容已移除可識別參賽單位及成員身分之資訊。
+>
+> 本 Repository 同時為學校課程／專題歷程之公開開源成果，部分既有繳交文件與歷史成果包含成員姓名、學號、影像或其他可識別資訊。為維持原始繳交內容及開發歷程之完整性，相關既有檔案予以保留(但若有可是別資訊會註記)，**不建議於 InnoServe 匿名審查期間開啟，敬請審查時略過相關內容。**
 # 🍍 PineNose：鳳梨成熟度與品種辨識系統
 ### Pineapple Ripeness & Variety Detection System
-
+ **匿名審查提醒：以下三部歷史 Demo 影片包含成員影像或其他可識別資訊，InnoServe 匿名審查期間請勿開啟。**
 ### [🎬 期中 Demo 影片](https://drive.google.com/file/d/1zQTGWSUGKHxx7ukhSpP41EWQJNEOJPet/view?usp=drivesdk)
 ### [🎬 期末 Demo 影片](https://drive.google.com/file/d/1Z_MbwVsv4nYf6GSiNdPcTrRvedTm5LH4/view?usp=drivesdk)
 ### 🎬 [20260601 報告 Demo 影片](https://drive.google.com/file/d/1jPS8nS9LenRPj_xzRBxOc3c53piBs48R/view?usp=drivesdk)
+
+### 🎬 InnoServe 匿名審查 Demo 影片
+以下版本不含參賽成員、學校名稱、學校 Logo 等可識別參賽單位之資訊，供 InnoServe 審查使用：
+▶️ [PineNose｜InnoServe 匿名審查 Demo 影片](https://www.youtube.com/watch?v=WHv5cEysAu4)
 
 *電子鼻 × 邊緣運算 × 機器學習 × 影像辨識 × 行動 App*
 
