@@ -42,10 +42,6 @@
 ▶️ <a href="https://www.youtube.com/watch?v=WHv5cEysAu4"><strong>PineNose｜InnoServe 匿名審查 Demo 影片</strong></a>
 </p>
 
-### 🎬 InnoServe 匿名審查 Demo 影片
-以下版本不含參賽成員、學校名稱、學校 Logo 等可識別參賽單位之資訊，供 InnoServe 審查使用：
-▶️ [PineNose｜InnoServe 匿名審查 Demo 影片](https://www.youtube.com/watch?v=WHv5cEysAu4)
-
 *電子鼻 × 邊緣運算 × 機器學習 × 影像辨識 × 行動 App*
 
 ![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=flat-square&logo=python&logoColor=white)
