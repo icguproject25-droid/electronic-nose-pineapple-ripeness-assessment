@@ -467,21 +467,7 @@ npm run test
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 ```
 
----
 
-## 14. 開發團隊 Team Members
-
-本專題由長庚大學（Chang Gung University）學生共同開發：
-
-| 學號 | 姓名 |
-|------|------|
-| B1144143 | 陳玟妤 |
-| B1229062 | 林冠妤 |
-| B1229066 | 陳怡禎 |
-| B1229068 | 廖文歆 |
-
----
-
-## 15. 授權 License
+## 14. 授權 License
 
 本專案採用 [MIT License](LICENSE) 授權。
