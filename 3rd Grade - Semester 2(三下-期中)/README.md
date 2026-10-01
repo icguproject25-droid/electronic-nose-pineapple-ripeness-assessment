@@ -12,7 +12,13 @@
 # 🍍 鳳梨成熟度辨識系統 — 期中版
 ### Pineapple Ripeness Detection System — Midterm
 
-### [🎬 期中 Demo 影片](https://drive.google.com/file/d/1zQTGWSUGKHxx7ukhSpP41EWQJNEOJPet/view?usp=drivesdk)
+<p align="center">
+<strong>⚠️ 匿名審查提醒：以下歷史 Demo 影片包含成員影像或其他可識別資訊，InnoServe 匿名審查期間請勿開啟。</strong>
+</p>
+
+<h3 align="center">
+<a href="https://drive.google.com/file/d/1zQTGWSUGKHxx7ukhSpP41EWQJNEOJPet/view?usp=drive_link">🎬 期中 Demo 影片</a>
+</h3>
 
 *電子鼻 × 邊緣運算 × 機器學習 | Electronic Nose × Edge Computing × Machine Learning*
 
