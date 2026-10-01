@@ -29,7 +29,7 @@
 </h3>
 
 <h3 align="center">
-<a href="https://drive.google.com/file/d/1jPS8nS9LenRPj_xzRBx0Oc3c53piBs48R/view?usp=drivesdk">🎬 20260601 報告 Demo 影片</a>
+<a href="https://drive.google.com/file/d/1jPS8nS9LenRPj_xzRBxOc3c53piBs48R/view">🎬 20260601 報告 Demo 影片</a>
 </h3>
 
 <br>
