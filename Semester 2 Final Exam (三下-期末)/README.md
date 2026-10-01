@@ -14,7 +14,7 @@
 
 *電子鼻成熟度辨識 × 影像品種辨識 × 整合 Web 介面 × 行動 App*
 <p align="center">
-<strong>⚠️ 匿名審查提醒：以下三部歷史 Demo 影片包含成員影像或其他可識別資訊，InnoServe 匿名審查期間請勿開啟。</strong>
+<strong>⚠️ 匿名審查提醒：以下兩部歷史 Demo 影片包含成員影像或其他可識別資訊，InnoServe 匿名審查期間請勿開啟。</strong>
 </p>
 
 <h3 align="center">
