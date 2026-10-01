@@ -468,21 +468,7 @@ app.run(host="0.0.0.0", port=5000, debug=False)
 
 App 內建 fallback 邏輯：後端離線時自動回傳亂數模擬值。至「設定」頁面確認 RPi IP 填寫正確，並確認 `app_local.py` 正在執行。
 
----
 
-## 13. 開發團隊 Team Members
-
-本專題由長庚大學（Chang Gung University）學生共同開發：
-
-| 學號 | 姓名 |
-|------|------|
-| B1144143 | 陳玟妤 |
-| B1229062 | 林冠妤 |
-| B1229066 | 陳怡禎 |
-| B1229068 | 廖文歆 |
-
----
-
-## 14. 授權 License
+## 13. 授權 License
 
 本專案採用 [MIT License](../../LICENSE) 授權。
