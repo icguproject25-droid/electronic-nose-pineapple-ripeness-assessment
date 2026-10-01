@@ -14,10 +14,30 @@
 
 *電子鼻成熟度辨識 × 影像品種辨識 × 整合 Web 介面 × 行動 App*
 <p align="center">
-<strong>⚠️ 匿名審查提醒：以下兩部歷史 Demo 影片包含成員影像或其他可識別資訊，InnoServe 匿名審查期間請勿開啟。</strong>
+  <strong>⚠️ 匿名審查提醒：以下兩部歷史 Demo 影片包含成員影像或其他可識別資訊，InnoServe 匿名審查期間請勿開啟。</strong>
 </p>
-### [🎬 期末 Demo 影片](https://drive.google.com/file/d/1Z_MbwVsv4nYf6GSiNdPcTrRvedTm5LH4/view?usp=drivesdk)
-### 🎬 [20260601 報告 Demo 影片](https://drive.google.com/file/d/1jPS8nS9LenRPj_xzRBxOc3c53piBs48R/view?usp=drivesdk)
+
+<h3 align="center">
+  <a href="https://drive.google.com/file/d/1Z_MbwVsv4nYf6GSiNdPcTrRvedTm5LH4/view?usp=drivesdk">
+    🎬 期末 Demo 影片【含可識別資訊－匿名審查請勿開啟】
+  </a>
+</h3>
+
+<h3 align="center">
+  <a href="https://drive.google.com/file/d/1jPS8nS9LenRPj_xzRBx0Oc3c53piBs48R/view?usp=drivesdk">
+    🎬 20260601 報告 Demo 影片【含可識別資訊－匿名審查請勿開啟】
+  </a>
+</h3>
+
+<br>
+
+<h3 align="center">🎬 InnoServe 匿名審查 Demo 影片</h3>
+
+<p align="center">
+  以下版本不含參賽成員、學校名稱、學校 Logo 等可識別參賽單位之資訊，供 InnoServe 審查使用。
+  <br><br>
+  ▶️ <a href="https://www.youtube.com/watch?v=WHv5cEysAu4"><strong>PineNose｜InnoServe 匿名審查 Demo 影片</strong></a>
+</p>
 
 ![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.1+-000000?style=flat-square&logo=flask&logoColor=white)
