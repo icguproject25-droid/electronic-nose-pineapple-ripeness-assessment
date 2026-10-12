@@ -11,6 +11,7 @@ API:
 """
 
 import glob
+import hashlib
 import json
 import pickle
 import threading
@@ -47,6 +48,25 @@ RECORDS_PATH = BASE_DIR / "scan_records.json"
 # ─────────────────────────────────────────
 WINDOW = 30
 BAUD = 115200
+
+# 多窗口投票：取最後 WINDOW + (N_WINDOWS-1)*WINDOW_STEP 筆，切成 N 個 30 筆窗口
+# 每個窗口各自推論，平均機率後再決定階段（1 Hz 下約 50 秒）
+N_WINDOWS = 3
+WINDOW_STEP = 10
+SCAN_ROWS = WINDOW + (N_WINDOWS - 1) * WINDOW_STEP
+
+# 後處理模式：
+#   "raw"    = 只用模型機率（預設）
+#   "legacy" = 舊版初熟／過熟修正規則（門檻是依舊版未正規化的比值調出來的，僅供對照）
+POSTPROCESS_MODE = "raw"
+
+# 訓練資料為 1 Hz（pineapple_sample_collection.ino：SAMPLE_INTERVAL_MS = 1000）
+# 實際取樣間隔中位數超出此範圍時，窗口就不等於訓練時的 30 秒
+EXPECTED_INTERVAL_SEC = 1.0
+INTERVAL_TOLERANCE_SEC = 0.2
+
+# 開始取樣時用來描述感測器初始狀態的筆數（只記錄，不做判斷）
+ONSET_ROWS = 5
 
 GAS_SENSORS = ["MQ2", "MQ3", "MQ9", "MQ135", "TGS2602"]
 BME_KEYS = ["Temp_C", "Humidity_pct", "Pressure_hPa"]
@@ -103,10 +123,12 @@ def _get_state():
 _model = None
 _features = None
 _meta = None
+_model_sha256 = None
+_last_scan_end = None
 
 
 def _load_model():
-    global _model, _features, _meta
+    global _model, _features, _meta, _model_sha256
 
     if not MODEL_PATH.exists():
         raise FileNotFoundError(f"模型檔案不存在：{MODEL_PATH}")
@@ -114,11 +136,20 @@ def _load_model():
     if not FEATURES_PATH.exists():
         raise FileNotFoundError(f"特徵欄位不存在：{FEATURES_PATH}")
 
+    _model_sha256 = hashlib.sha256(MODEL_PATH.read_bytes()).hexdigest()
+
     with open(MODEL_PATH, "rb") as f:
         _model = pickle.load(f)
 
     with open(FEATURES_PATH, "r", encoding="utf-8") as f:
         _features = json.load(f)
+
+    n_model = getattr(_model, "n_features_in_", None)
+    if n_model is not None and n_model != len(_features):
+        raise ValueError(
+            f"模型需要 {n_model} 個特徵，但 feature_columns.json 有 {len(_features)} 個，"
+            "請確認兩者來自同一個部署包"
+        )
 
     if META_PATH.exists():
         with open(META_PATH, "r", encoding="utf-8") as f:
@@ -126,7 +157,7 @@ def _load_model():
     else:
         _meta = {}
 
-    print(f"[Model] 載入完成，特徵數：{len(_features)}")
+    print(f"[Model] 載入完成，特徵數：{len(_features)}，SHA-256：{_model_sha256}")
 
 
 # ─────────────────────────────────────────
@@ -146,6 +177,7 @@ def _safe_float(value, default=None):
 
 def _read_arduino_row(row):
     parsed = {
+        "timestamp_ms": _safe_float(row.get("timestamp_ms")),
         "MQ2": _safe_float(row.get("MQ2_raw")),
         "MQ3": _safe_float(row.get("MQ3_raw")),
         "MQ9": _safe_float(row.get("MQ9_raw")),
@@ -243,6 +275,55 @@ def _base_value(air, sensor_name):
     return float(v)
 
 
+def _validate_air_base(air):
+    # 推論前檢查：任何一個氣體感測器基準無效就不推論，避免 _base_value 默默改用 1.0
+    problems = []
+    for s in GAS_SENSORS:
+        v = _safe_float(air.get(s))
+        if v is None:
+            problems.append(f"{s} 缺少基準值")
+        elif not (10 <= v <= 1000):
+            # 與 use_this.ino 的 isValidMQRaw 範圍一致
+            problems.append(f"{s} 基準值 {v:.1f} 超出 10～1000")
+    return problems
+
+
+def _sampling_quality(rows):
+    ts = [r["timestamp_ms"] for r in rows if r.get("timestamp_ms") is not None]
+    if len(ts) < 2:
+        return {"status": "unknown", "median_interval_sec": None, "span_sec": None}
+
+    intervals = np.diff(ts) / 1000.0
+    median_interval = float(np.median(intervals))
+
+    if np.any(intervals <= 0):
+        # timestamp 倒退通常代表 Arduino 在取樣途中重啟
+        status = "timestamp_reset"
+    elif abs(median_interval - EXPECTED_INTERVAL_SEC) > INTERVAL_TOLERANCE_SEC:
+        status = "interval_abnormal"
+    else:
+        status = "ok"
+
+    return {
+        "status": status,
+        "median_interval_sec": round(median_interval, 4),
+        "max_interval_sec": round(float(np.max(intervals)), 4),
+        "span_sec": round((ts[-1] - ts[0]) / 1000.0, 3),
+    }
+
+
+def _onset_state(rows, air):
+    # 取樣開頭幾筆的相對基準值與斜率，用來累積「感測器是否已恢復」的實測資料
+    head = rows[:ONSET_ROWS]
+    return {
+        s: {
+            "mean_norm": round(float(np.mean([r[s] for r in head]) / _base_value(air, s)), 5),
+            "slope": round(_safe_slope([r[s] for r in head]), 5),
+        }
+        for s in GAS_SENSORS
+    }
+
+
 def _build_features(rows, air):
     data = {
         s: np.array([r[s] for r in rows], dtype=float)
@@ -251,10 +332,20 @@ def _build_features(rows, air):
 
     feat = {}
 
-    feat["MQ2_MQ3_ratio"] = _safe_ratio(np.mean(data["MQ2"]), np.mean(data["MQ3"]))
-    feat["MQ3_MQ135_ratio"] = _safe_ratio(np.mean(data["MQ3"]), np.mean(data["MQ135"]))
-    feat["MQ3_TGS2602_ratio"] = _safe_ratio(np.mean(data["MQ3"]), np.mean(data["TGS2602"]))
+    # 比值特徵必須和訓練一致：先各自除以空氣基準，再相除
+    # （訓練端 add_cross_ratio_features：{s1}_mean_norm / ({s2}_mean_norm + 1e-9)）
+    mean_norm = {
+        s: np.mean(data[s]) / _base_value(air, s)
+        for s in GAS_SENSORS
+    }
+    feat["MQ2_MQ3_ratio"] = _safe_ratio(mean_norm["MQ2"], mean_norm["MQ3"])
+    feat["MQ3_MQ135_ratio"] = _safe_ratio(mean_norm["MQ3"], mean_norm["MQ135"])
+    feat["MQ3_TGS2602_ratio"] = _safe_ratio(mean_norm["MQ3"], mean_norm["TGS2602"])
     feat["MQ3_MQ135_correlation"] = _safe_corr(data["MQ3"], data["MQ135"])
+
+    # 舊版（原始讀值相除）的比值，只給 legacy 後處理規則與 debug 使用，不進模型
+    feat["MQ2_MQ3_raw_ratio"] = _safe_ratio(np.mean(data["MQ2"]), np.mean(data["MQ3"]))
+    feat["MQ3_MQ135_raw_ratio"] = _safe_ratio(np.mean(data["MQ3"]), np.mean(data["MQ135"]))
 
     feat["MQ2_auc_norm"] = _safe_auc(data["MQ2"]) / (len(data["MQ2"]) * _base_value(air, "MQ2"))
     feat["MQ2_mean_norm"] = np.mean(data["MQ2"]) / _base_value(air, "MQ2")
@@ -283,6 +374,15 @@ def _build_features(rows, air):
 # ─────────────────────────────────────────
 # 後處理邏輯
 # ─────────────────────────────────────────
+def _legacy_feat(feat):
+    # 舊規則的門檻（例如 ratio > 2.00）是依原始讀值比值調出來的，
+    # 套用舊規則時換回舊比值，避免與正規化後的比值混用
+    legacy = dict(feat)
+    legacy["MQ2_MQ3_ratio"] = feat["MQ2_MQ3_raw_ratio"]
+    legacy["MQ3_MQ135_ratio"] = feat["MQ3_MQ135_raw_ratio"]
+    return legacy
+
+
 def _air_or_no_sample_guard(feat, proba):
     mq2_mean_norm = float(feat.get("MQ2_mean_norm", 999.0))
     mq9_min_norm = float(feat.get("MQ9_min_norm", 999.0))
@@ -462,9 +562,19 @@ def _run_inference(warmup_sec: int, scan_id: str):
         with open(AIR_BASE_PATH, "r", encoding="utf-8") as f:
             air = json.load(f)
 
+        air_problems = _validate_air_base(air)
+        if air_problems:
+            _set_state(status="error", error="AIR_BASE_INVALID：" + "；".join(air_problems) + "，請重新空氣校正")
+            return
+
+        global _last_scan_end
+        sec_since_last_scan = (
+            round(time.time() - _last_scan_end, 1) if _last_scan_end is not None else None
+        )
+
         ser, header, port = _open_serial_and_wait_header()
 
-        total_sec = warmup_sec + WINDOW
+        total_sec = warmup_sec + SCAN_ROWS
         all_rows = []
         t0 = time.time()
 
@@ -495,58 +605,117 @@ def _run_inference(warmup_sec: int, scan_id: str):
             _set_state(progress=progress)
 
         ser.close()
+        _last_scan_end = time.time()
 
         if not all_rows:
             _set_state(status="error", error="沒有收集到任何感測資料")
             return
 
-        rows = all_rows[-WINDOW:] if len(all_rows) > WINDOW else all_rows
+        if len(all_rows) < WINDOW:
+            _set_state(
+                status="error",
+                error=f"取樣不足：只收到 {len(all_rows)} 筆，至少需要 {WINDOW} 筆",
+            )
+            return
 
-        feat, data = _build_features(rows, air)
+        rows = all_rows[-SCAN_ROWS:]
 
-        X = np.array([feat.get(f, 0.0) for f in _features], dtype=float).reshape(1, -1)
+        # 多窗口推論：每個 30 筆窗口各算一次特徵與機率，再平均
+        window_results = []
+        for start in range(0, len(rows) - WINDOW + 1, WINDOW_STEP):
+            w_feat, _ = _build_features(rows[start:start + WINDOW], air)
 
-        raw_pred = int(_model.predict(X)[0])
+            missing = [f for f in _features if f not in w_feat]
+            if missing:
+                raise ValueError(f"FEATURE_MISMATCH：gateway 無法計算模型需要的特徵 {missing}")
 
-        if hasattr(_model, "predict_proba"):
-            proba = _model.predict_proba(X)[0]
-        else:
-            proba = np.zeros(4, dtype=float)
-            proba[raw_pred] = 1.0
+            x = np.array([w_feat[f] for f in _features], dtype=float)
+            if not np.all(np.isfinite(x)):
+                bad = [f for f, v in zip(_features, x) if not np.isfinite(v)]
+                raise ValueError(f"特徵數值異常（NaN/inf）：{bad}")
 
-        guard_triggered = _air_or_no_sample_guard(feat, proba)
-        display_text = _get_display_text(proba, raw_pred)
-
-        final_pred, early_used = _early_stage_override(raw_pred, proba, feat)
-        override_used = False
-
-        if early_used:
-            if final_pred == 0:
-                display_text = "未熟（接近初熟）"
-            elif final_pred == 1:
-                display_text = "初熟（接近成熟）"
+            w_proba = np.zeros(4, dtype=float)
+            if hasattr(_model, "predict_proba"):
+                w_proba[_model.classes_.astype(int)] = _model.predict_proba(x.reshape(1, -1))[0]
             else:
-                display_text = STAGE_ZH.get(final_pred, str(final_pred))
-        else:
-            final_pred, override_used = _overripe_override(raw_pred, proba, feat)
+                w_proba[int(_model.predict(x.reshape(1, -1))[0])] = 1.0
 
-            if override_used:
-                display_text = "過熟"
+            window_results.append({
+                "start_row": start,
+                "stage": int(np.argmax(w_proba)),
+                "proba": w_proba,
+                "feat": w_feat,
+            })
 
+        proba = np.mean([w["proba"] for w in window_results], axis=0)
+        raw_pred = int(np.argmax(proba))
+
+        window_stages = [w["stage"] for w in window_results]
+        agreement = window_stages.count(raw_pred) / len(window_stages)
+        stable = agreement > 0.5
+
+        # 舊規則與 guard 沿用最後一個窗口（等同舊版只看最後 30 筆）
+        feat = window_results[-1]["feat"]
+        legacy_feat = _legacy_feat(feat)
+
+        # guard 門檻是舊版調的，只記錄、不影響判斷
+        guard_triggered = _air_or_no_sample_guard(legacy_feat, proba)
         raw_pct = _build_raw_maturity_percent(proba)
 
-        if early_used:
-            final_pct = _build_early_display_percent(final_pred, feat)
-            if final_pct is None:
-                final_pct = raw_pct
+        # raw 模式：顯示文字只用階段名稱，「接近／過熟傾向」等提示交給 probabilities 呈現
+        display_text = STAGE_ZH[raw_pred]
+        final_pred = raw_pred
+        final_pct = raw_pct
+        early_used = False
+        override_used = False
+
+        if POSTPROCESS_MODE == "legacy":
+            display_text = _get_display_text(proba, raw_pred)
+            final_pred, early_used = _early_stage_override(raw_pred, proba, legacy_feat)
+
+            if early_used:
+                if final_pred == 0:
+                    display_text = "未熟（接近初熟）"
+                elif final_pred == 1:
+                    display_text = "初熟（接近成熟）"
+                else:
+                    display_text = STAGE_ZH.get(final_pred, str(final_pred))
+
+                final_pct = _build_early_display_percent(final_pred, legacy_feat)
+                if final_pct is None:
+                    final_pct = raw_pct
+            else:
+                final_pred, override_used = _overripe_override(raw_pred, proba, legacy_feat)
+
+                if override_used:
+                    display_text = "過熟"
+
+                final_pct = _build_final_display_percent(
+                    raw_pct,
+                    final_pred,
+                    override_used,
+                    proba,
+                    legacy_feat,
+                )
+
+        sampling = _sampling_quality(rows)
+
+        # quality_status：量測本身是否有效，與分類結果分開
+        #   ok                                  → measurement_valid = True
+        #   unstable（窗口結果不一致）            → 回傳結果，但 measurement_valid = False
+        #   unknown（無法讀到 timestamp_ms）      → 回傳結果，但 measurement_valid = False
+        #   timestamp_reset / interval_abnormal → 資料不符合模型前提，以 error 結束（見下方）
+        sampling_failed = sampling["status"] in ("timestamp_reset", "interval_abnormal")
+        if sampling_failed:
+            quality_status = sampling["status"]
+        elif not stable:
+            quality_status = "unstable"
+            display_text = f"{display_text}（量測不穩定，建議重測）"
         else:
-            final_pct = _build_final_display_percent(
-                raw_pct,
-                final_pred,
-                override_used,
-                proba,
-                feat,
-            )
+            quality_status = "ok" if sampling["status"] == "ok" else "unknown"
+        measurement_valid = quality_status == "ok"
+
+        _, data = _build_features(rows, air)
 
         sensor_means = {
             s: float(np.mean(data[s]))
@@ -609,16 +778,59 @@ def _run_inference(warmup_sec: int, scan_id: str):
             "guard_triggered": guard_triggered,
             "override_used": override_used,
 
+            "quality_status": quality_status,
+            "measurement_valid": measurement_valid,
+
+            # 數值意義說明：避免把模型推估值誤讀成實測值或正確率
+            "field_notes": {
+                "maturityPercent": "模型推估指標 = (p1 + 2*p2 + 3*p3) / 3，非糖度或實測熟度",
+                "confidence": "平均後最高類別機率，未經機率校準，不等於實際正確率",
+            },
+
+            "stability": {
+                "n_windows": len(window_results),
+                "window_stages": window_stages,
+                "agreement": round(agreement, 4),
+                "stable": stable,
+            },
+
+            "sampling": sampling,
+
             "debug": {
                 "raw_pred": raw_pred,
                 "final_pred": final_pred,
+                "postprocess_mode": POSTPROCESS_MODE,
+                "model_sha256": _model_sha256,
+                "sec_since_last_scan": sec_since_last_scan,
+                "onset_state": _onset_state(rows, air),
                 "early_override_used": early_used,
                 "overripe_override_used": override_used,
                 "feature_values": feat,
+                "windows": [
+                    {
+                        "start_row": w["start_row"],
+                        "stage": w["stage"],
+                        "proba": [round(float(p), 4) for p in w["proba"]],
+                        "feature_values": w["feat"],
+                    }
+                    for w in window_results
+                ],
+                "n_rows_collected": len(all_rows),
                 "air_base": air,
                 "arduino_port": port,
             },
         }
+
+        if sampling_failed:
+            # App 收到 error 不會顯示分類；result 仍保留在 state 供除錯
+            _set_state(
+                status="error",
+                progress=100,
+                result=result,
+                error=f"SAMPLING_{quality_status.upper()}：取樣時間異常（{sampling}），請重新量測",
+            )
+            print(f"[Scan] 取樣時間異常：{sampling}")
+            return
 
         _set_state(status="done", progress=100, result=result, error=None)
 
@@ -738,6 +950,10 @@ def health():
         "air_calibrated_at": calibrated_at,
         "air_base_preview": air_base_preview,
         "model_exists": MODEL_PATH.exists(),
+        "model_loaded": _model is not None,
+        "model_sha256": _model_sha256,
+        "n_features": len(_features) if _features is not None else None,
+        "postprocess_mode": POSTPROCESS_MODE,
         "feature_columns_exists": FEATURES_PATH.exists(),
         "arduino_ports": ports,
         "pineapple_dir": str(PINEAPPLE_DIR),
